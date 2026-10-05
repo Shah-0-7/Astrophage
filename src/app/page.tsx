@@ -58,9 +58,8 @@ function ViewLoader({ label }: { label: string }) {
 function ViewRouter() {
   const viewMode = useStore(s => s.viewMode);
 
-  // Radar scan line (decorative overlay, applied to all views)
   return (
-    <div className="flex-1 relative overflow-hidden">
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       {/* Radar scan line overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-50 opacity-30">
         <div className="radar-scan-line w-full h-[200%]" />
@@ -77,21 +76,29 @@ function ViewRouter() {
 export default function Home() {
   return (
     <main
-      className="w-screen h-screen overflow-hidden flex flex-col"
-      style={{ background: 'var(--bg-primary)' }}
+      className="w-screen h-screen overflow-hidden"
+      style={{ background: 'var(--bg-primary)', position: 'relative' }}
     >
-      {/* ── Persistent telemetry header (42px) ───────────────── */}
+      {/* ── Persistent telemetry header (42px fixed top) ───────── */}
       <TelemetryHeader />
 
-      {/* ── Main content area (below header, above scrubber) ─── */}
+      {/* ── Main content area fills between header and scrubber ── */}
       <div
-        className="flex flex-col"
-        style={{ marginTop: 42, marginBottom: 94, flex: 1, overflow: 'hidden' }}
+        style={{
+          position: 'absolute',
+          top: 42,
+          left: 0,
+          right: 0,
+          bottom: 94,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
         <ViewRouter />
       </div>
 
-      {/* ── Persistent pass scrubber (bottom, ~94px) ─────────── */}
+      {/* ── Persistent pass scrubber (fixed bottom ~94px) ──────── */}
       <PassScrubber />
     </main>
   );

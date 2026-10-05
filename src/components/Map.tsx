@@ -10,11 +10,12 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Map as MapLibreMap, Marker } from 'react-map-gl/maplibre';
-import DeckGL from '@deck.gl/react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Map as MapLibreMap, Marker, useControl } from 'react-map-gl/maplibre';
+import type { MapRef } from 'react-map-gl/maplibre';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import type { MapboxOverlayProps } from '@deck.gl/mapbox';
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { FlyToInterpolator } from '@deck.gl/core';
 import { useStore } from '@/lib/store';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES } from '@/lib/mockData';
@@ -84,6 +85,20 @@ function fmtTime(ms: number): string {
   });
 }
 
+/** DeckGL overlay injected into MapLibre's own WebGL context — zero drift guaranteed */
+function DeckGLOverlay(props: MapboxOverlayProps) {
+  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
+  overlay.setProps(props);
+  return null;
+}
+
+/** Compute minimum zoom: stop when first dimension (W or H) fills the viewport */
+function computeMinZoom(width: number, height: number): number {
+  const zoomForWidth  = Math.log2(width  / 512);
+  const zoomForHeight = Math.log2(height / 512);
+  return Math.max(0, Math.min(zoomForWidth, zoomForHeight));
+}
+
 export default function MapComponent() {
   const activeNodeId    = useStore(s => s.activeNodeId);
   const setActiveNodeId = useStore(s => s.setActiveNodeId);
@@ -93,12 +108,51 @@ export default function MapComponent() {
   const flyToCoords        = useStore(s => s.flyToCoords);
   const { activeScenario, filteredFeatures } = useNISARData();
 
+  // Dynamic minZoom based on container size
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [minZoom, setMinZoom] = useState(1.0);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = (w: number, h: number) => setMinZoom(computeMinZoom(w, h));
+    update(el.clientWidth, el.clientHeight);
+    const ro = new ResizeObserver(entries => {
+      const r = entries[0]?.contentRect;
+      if (r) update(r.width, r.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Live earthquake + fault data
   const { earthquakes, faultLines, status, lastUpdated, refetch } = useEarthquakeData(4.5, 300);
   const [selectedEq, setSelectedEq] = useState<USGSEarthquake | null>(null);
 
+  // Seismic event triggers: which passes fire events on which nodes
+  const SEISMIC_EVENTS: Record<number, string[]> = {
+    2:  ['TC-89'],
+    5:  ['EQ-99', 'TC-44'],
+    8:  ['TC-31'],
+    11: ['TC-89', 'EQ-99'],
+    14: ['TC-44', 'TC-31'],
+    17: ['EQ-99'],
+  };
+  const seismicNodeIds: string[] = SEISMIC_EVENTS[currentPassIndex] ?? [];
+  const [seismicAlert, setSeismicAlert] = useState<string[]>([]);
+  useEffect(() => {
+    if (seismicNodeIds.length > 0) {
+      setSeismicAlert(seismicNodeIds);
+      const t = setTimeout(() => setSeismicAlert([]), 4000);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPassIndex]);
+
   const activeNode = TARGET_NODES.find(n => n.id === activeNodeId);
   const bb = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
+
+  // MapLibre map ref for programmatic flyTo
+  const mapRef = useRef<MapRef>(null);
 
   const [viewState, setViewState] = useState({
     longitude: bb?.center[0] ?? activeScenario.center[0],
@@ -106,33 +160,26 @@ export default function MapComponent() {
     zoom:      bb?.zoom2D    ?? activeScenario.zoom,
     pitch:     0,
     bearing:   0,
-    transitionDuration: 2500,
-    transitionInterpolator: new FlyToInterpolator({ speed: 1.4 }),
   });
 
   useEffect(() => {
     const bbox = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
-    setViewState({
-      longitude: bbox?.center[0] ?? activeScenario.center[0],
-      latitude:  bbox?.center[1] ?? activeScenario.center[1],
-      zoom:      bbox?.zoom2D    ?? activeScenario.zoom,
-      pitch:     0,
-      bearing:   0,
-      transitionDuration: 2000,
-      transitionInterpolator: new FlyToInterpolator({ speed: 1.4 }),
-    });
+    const target = {
+      center: [bbox?.center[0] ?? activeScenario.center[0], bbox?.center[1] ?? activeScenario.center[1]] as [number, number],
+      zoom:   bbox?.zoom2D ?? activeScenario.zoom,
+    };
+    mapRef.current?.flyTo({ ...target, duration: 2000, essential: true });
+    setViewState(prev => ({ ...prev, longitude: target.center[0], latitude: target.center[1], zoom: target.zoom }));
   }, [activeNodeId, activeScenario]);
 
   useEffect(() => {
     if (flyToCoords) {
-      setViewState((prev: any) => ({
-        ...prev,
-        longitude: flyToCoords[0],
-        latitude: flyToCoords[1],
-        zoom: Math.max(prev.zoom, 6),
-        transitionDuration: 1500,
-        transitionInterpolator: new FlyToInterpolator({ speed: 1.2 }),
-      }));
+      mapRef.current?.flyTo({
+        center: flyToCoords as [number, number],
+        zoom: Math.max(viewState.zoom, 6),
+        duration: 1500,
+        essential: true,
+      });
     }
   }, [flyToCoords]);
 
@@ -149,7 +196,6 @@ export default function MapComponent() {
         pickable: false,
         stroked: true,
         filled: false,
-        wrapLongitude: true,
         getLineColor: [251, 146, 60, 100] as [number, number, number, number],
         getLineWidth: 1,
         lineWidthMinPixels: 1,
@@ -266,8 +312,89 @@ export default function MapComponent() {
     ];
   }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines]);
 
+  // Tooltip handler for DeckGLOverlay
+  const getTooltip = ({ object }: any) => {
+    if (!object) return null;
+    if ('magnitude' in object) {
+      const eq = object as USGSEarthquake;
+      return {
+        html: `
+          <div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
+            <div style="font-weight:700;margin-bottom:3px;letter-spacing:.14em;color:rgb(${magToColor(eq.magnitude).slice(0,3).join(',')});text-transform:uppercase;font-size:9px;">
+              M${eq.magnitude.toFixed(1)} EARTHQUAKE
+            </div>
+            <div style="color:white;font-size:11px;max-width:200px;margin-bottom:3px;">${eq.place}</div>
+            <div style="color:rgba(255,255,255,.45);font-size:8px;letter-spacing:.08em;">
+              ${new Date(eq.time).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+              &nbsp;·&nbsp; Depth ${eq.coords[2].toFixed(0)} km
+            </div>
+            <div style="color:rgba(255,255,255,.3);font-size:8px;margin-top:3px;letter-spacing:.1em;">Click for details</div>
+          </div>
+        `,
+        style: {
+          backgroundColor: 'rgba(9,9,11,.92)',
+          border: `1px solid rgba(${magToColor(eq.magnitude).slice(0,3).join(',')}, .4)`,
+          boxShadow: '0 8px 32px rgba(0,0,0,.6)',
+          borderRadius: '2px',
+          color: 'white',
+          backdropFilter: 'blur(16px)',
+          padding: '10px 12px',
+        },
+      };
+    }
+    return {
+      html: `
+        <div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
+          <div style="font-weight:700;margin-bottom:4px;letter-spacing:.12em;color:#ef4444;text-transform:uppercase;font-size:9px;">
+            ${(object as any).properties?.category ?? 'UNKNOWN'}
+          </div>
+          <div style="color:rgba(255,255,255,.55);font-size:9px;">${(object as any).properties?.metricName ?? ''}:</div>
+          <div style="color:white;font-weight:700;font-size:13px;">${(object as any).properties?.metricValue ?? ''}</div>
+          <div style="color:rgba(255,255,255,.3);font-size:8px;margin-top:4px;letter-spacing:.1em;">
+            ${new Date((object as any).properties?.timestamp ?? '').toLocaleDateString()}
+          </div>
+        </div>
+      `,
+      style: {
+        backgroundColor: 'rgba(9,9,11,.92)',
+        border: '1px solid rgba(255,255,255,.10)',
+        boxShadow: '0 8px 32px rgba(0,0,0,.6)',
+        borderRadius: '2px',
+        color: 'white',
+        backdropFilter: 'blur(16px)',
+        padding: '10px 12px',
+      },
+    };
+  };
+
   return (
-    <div className="absolute inset-0 w-full h-full bg-black">
+    <div ref={containerRef} className="absolute inset-0 w-full h-full bg-black">
+
+      {/* ── Seismic Event HUD Alert ───────────────────────────── */}
+      {seismicAlert.length > 0 && (
+        <div
+          className="absolute z-40 pointer-events-none"
+          style={{ top: 12, left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <div
+            className="flex items-center gap-3 px-4 py-2"
+            style={{
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.6)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 0 32px rgba(239,68,68,0.3)',
+              animation: 'pulse 1s ease-in-out infinite',
+            }}
+          >
+            <div className="w-2 h-2 rounded-full animate-ping" style={{ background: '#ef4444', flexShrink: 0 }} />
+            <span className="font-mono" style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, letterSpacing: '0.22em' }}>⚠ SEISMIC EVENT DETECTED</span>
+            <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em' }}>
+              {seismicAlert.map(id => TARGET_NODES.find(n => n.id === id)?.label ?? id).join(' · ')}
+            </span>
+            <span className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>PASS {String(currentPassIndex + 1).padStart(2,'0')}</span>
+          </div>
+        </div>
+      )}
 
       {/* ── USGS feed status badge ───────────────────────────── */}
       <div
@@ -420,81 +547,28 @@ export default function MapComponent() {
         </div>
       )}
 
-      <DeckGL
-        viewState={viewState}
-        onViewStateChange={({ viewState: vs }) => setViewState(vs as any)}
-        controller={true}
-        layers={layers}
-        getTooltip={({ object }) => {
-          if (!object) return null;
-          // USGS earthquake object
-          if ('magnitude' in object) {
-            const eq = object as USGSEarthquake;
-            return {
-              html: `
-                <div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
-                  <div style="font-weight:700;margin-bottom:3px;letter-spacing:.14em;color:rgb(${magToColor(eq.magnitude).slice(0,3).join(',')});text-transform:uppercase;font-size:9px;">
-                    M${eq.magnitude.toFixed(1)} EARTHQUAKE
-                  </div>
-                  <div style="color:white;font-size:11px;max-width:200px;margin-bottom:3px;">${eq.place}</div>
-                  <div style="color:rgba(255,255,255,.45);font-size:8px;letter-spacing:.08em;">
-                    ${new Date(eq.time).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
-                    &nbsp;·&nbsp; Depth ${eq.coords[2].toFixed(0)} km
-                  </div>
-                  <div style="color:rgba(255,255,255,.3);font-size:8px;margin-top:3px;letter-spacing:.1em;">Click for details</div>
-                </div>
-              `,
-              style: {
-                backgroundColor: 'rgba(9,9,11,.92)',
-                border: `1px solid rgba(${magToColor(eq.magnitude).slice(0,3).join(',')}, .4)`,
-                boxShadow: '0 8px 32px rgba(0,0,0,.6)',
-                borderRadius: '2px',
-                color: 'white',
-                backdropFilter: 'blur(16px)',
-                padding: '10px 12px',
-                zIndex: '100',
-              },
-            };
-          }
-          // NISAR GeoJSON feature
-          return {
-            html: `
-              <div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
-                <div style="font-weight:700;margin-bottom:4px;letter-spacing:.12em;color:#ef4444;text-transform:uppercase;font-size:9px;">
-                  ${(object as any).properties?.category ?? 'UNKNOWN'}
-                </div>
-                <div style="color:rgba(255,255,255,.55);font-size:9px;">${(object as any).properties?.metricName ?? ''}:</div>
-                <div style="color:white;font-weight:700;font-size:13px;">${(object as any).properties?.metricValue ?? ''}</div>
-                <div style="color:rgba(255,255,255,.3);font-size:8px;margin-top:4px;letter-spacing:.1em;">
-                  ${new Date((object as any).properties?.timestamp ?? '').toLocaleDateString()}
-                </div>
-              </div>
-            `,
-            style: {
-              backgroundColor: 'rgba(9,9,11,.92)',
-              border: '1px solid rgba(255,255,255,.10)',
-              boxShadow: '0 8px 32px rgba(0,0,0,.6)',
-              borderRadius: '2px',
-              color: 'white',
-              backdropFilter: 'blur(16px)',
-              padding: '10px 12px',
-              zIndex: '100',
-            },
-          };
-        }}
+      <MapLibreMap
+        ref={mapRef}
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        mapStyle={MAP_STYLE}
+        attributionControl={false}
+        renderWorldCopies={false}
+        minZoom={minZoom}
+        maxZoom={18}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
       >
-        <MapLibreMap
-          {...viewState}
-          mapStyle={MAP_STYLE}
-          attributionControl={false}
-          renderWorldCopies={false}
-          style={{ width: '100%', height: '100%', background: 'black' }}
-        >
-          {/* ── All target node tactical markers ─────────────── */}
+        {/* DeckGL layers injected into MapLibre’s WebGL context — guaranteed in-sync */}
+        <DeckGLOverlay
+          layers={layers}
+          getTooltip={getTooltip}
+          interleaved={false}
+        />
         {TARGET_NODES.map(node => {
           const isActive   = node.id === activeNodeId;
           const cat        = CATEGORY_COLOR[node.category] ?? CATEGORY_COLOR.TECTONIC;
           const pulseColor = STATUS_PULSE[node.status] ?? '#4ade80';
+          const isSeismic  = seismicAlert.includes(node.id);
 
           return (
             <Marker
@@ -509,9 +583,48 @@ export default function MapComponent() {
             >
               <div
                 className="relative flex items-center justify-center cursor-pointer"
-                style={{ width: isActive ? 36 : 24, height: isActive ? 36 : 24, zIndex: isActive ? 50 : 10 }}
+                style={{ width: isActive ? 36 : isSeismic ? 32 : 24, height: isActive ? 36 : isSeismic ? 32 : 24, zIndex: isSeismic ? 60 : isActive ? 50 : 10 }}
                 title={`${node.label} [${node.id}]`}
               >
+                {/* Seismic event burst rings */}
+                {isSeismic && [
+                  { s: '0s', sz: 60 },
+                  { s: '0.4s', sz: 90 },
+                  { s: '0.8s', sz: 120 },
+                ].map(({ s, sz }, ri) => (
+                  <div
+                    key={ri}
+                    className="absolute rounded-full animate-ping pointer-events-none"
+                    style={{
+                      width: sz, height: sz,
+                      background: 'transparent',
+                      border: '1.5px solid #ef4444',
+                      opacity: 0.6,
+                      animationDuration: '1.2s',
+                      animationDelay: s,
+                    }}
+                  />
+                ))}
+                {/* Seismic label callout */}
+                {isSeismic && (
+                  <div
+                    className="absolute whitespace-nowrap pointer-events-none"
+                    style={{
+                      bottom: '110%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(239,68,68,0.15)',
+                      border: '1px solid rgba(239,68,68,0.7)',
+                      padding: '4px 10px',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: '0 0 16px rgba(239,68,68,0.4)',
+                      zIndex: 70,
+                    }}
+                  >
+                    <span className="font-mono" style={{ fontSize: 8, color: '#ef4444', fontWeight: 700, letterSpacing: '0.18em' }}>⚠ SEISMIC EVENT</span>
+                    <span className="font-mono" style={{ fontSize: 9, color: 'white', marginLeft: 6 }}>{node.label}</span>
+                  </div>
+                )}
                 {(isActive || node.status === 'CRITICAL') && (
                   <div
                     className="absolute rounded-full animate-ping"
@@ -642,7 +755,7 @@ export default function MapComponent() {
           </Marker>
         )}
       </MapLibreMap>
-      </DeckGL>
+
 
       {/* ── HUD: North Arrow ────────────────────────────────────── */}
       <div

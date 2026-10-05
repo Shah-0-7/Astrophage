@@ -69,7 +69,7 @@ export default function EventRadar2D() {
   };
 
   return (
-    <div className="flex h-full">
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', overflow: 'hidden' }}>
       {/* ── Left: contextual sidebar ──────────────────────── */}
       <div className="w-[188px] flex-shrink-0 glass-sidebar flex flex-col border-r border-white/10">
         {/* Mode indicator */}
