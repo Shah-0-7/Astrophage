@@ -157,7 +157,7 @@ export default function MapComponent() {
   const [viewState, setViewState] = useState({
     longitude: bb?.center[0] ?? activeScenario.center[0],
     latitude:  bb?.center[1] ?? activeScenario.center[1],
-    zoom:      bb?.zoom2D    ?? activeScenario.zoom,
+    zoom:      bb?.zoom2D    ?? 0,
     pitch:     0,
     bearing:   0,
   });
@@ -166,7 +166,7 @@ export default function MapComponent() {
     const bbox = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
     const target = {
       center: [bbox?.center[0] ?? activeScenario.center[0], bbox?.center[1] ?? activeScenario.center[1]] as [number, number],
-      zoom:   bbox?.zoom2D ?? activeScenario.zoom,
+      zoom:   bbox?.zoom2D ?? 0,
     };
     mapRef.current?.flyTo({ ...target, duration: 2000, essential: true });
     setViewState(prev => ({ ...prev, longitude: target.center[0], latitude: target.center[1], zoom: target.zoom }));
@@ -569,6 +569,8 @@ export default function MapComponent() {
           const cat        = CATEGORY_COLOR[node.category] ?? CATEGORY_COLOR.TECTONIC;
           const pulseColor = STATUS_PULSE[node.status] ?? '#4ade80';
           const isSeismic  = seismicAlert.includes(node.id);
+
+          if (!isSeismic && !isActive) return null;
 
           return (
             <Marker
