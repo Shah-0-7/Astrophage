@@ -10,7 +10,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Map as MapLibreMap, Marker, useControl } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
@@ -20,6 +20,11 @@ import { useStore } from '@/lib/store';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES } from '@/lib/mockData';
 import { useEarthquakeData, type USGSEarthquake } from '@/lib/useEarthquakeData';
+import { useSSEStream } from '@/lib/useSSEStream';
+import { buildSeismicHeatmapLayer } from '@/components/map-layers/SeismicHeatmapLayer';
+import { buildKinematicVectorLayers } from '@/components/map-layers/KinematicVectorLayer';
+import { buildTemporalDecayLayers } from '@/components/map-layers/TemporalDecayLayer';
+import type { MapLayerConfig } from '@/lib/types';
 import { setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -151,6 +156,36 @@ export default function MapComponent() {
   const activeNode = TARGET_NODES.find(n => n.id === activeNodeId);
   const bb = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
 
+  // SSE unified stream – real-time telemetry from all Phase 2 sources
+  const stream = useSSEStream();
+
+  // Layer toggle state
+  const [layerConfig, setLayerConfig] = useState<MapLayerConfig>({
+    seismicHeatmap:    true,
+    kinematicVectors:  true,
+    temporalDecay:     true,
+    gnssStations:      false,
+    sentinelSwaths:    false,
+    volcanismAlerts:   true,
+    cryosphereExtent:  false,
+    tsunamiZones:      true,
+  });
+  const [layerPanelOpen, setLayerPanelOpen] = useState(false);
+
+  // Kinematic animation offset (driven by rAF)
+  const animOffsetRef = useRef(0);
+  const [animOffset, setAnimOffset]   = useState(0);
+  const rafRef        = useRef<number>();
+  useEffect(() => {
+    const tick = () => {
+      animOffsetRef.current = (animOffsetRef.current + 0.004) % 1;
+      setAnimOffset(animOffsetRef.current);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
   // MapLibre map ref for programmatic flyTo
   const mapRef = useRef<MapRef>(null);
 
@@ -201,6 +236,30 @@ export default function MapComponent() {
         lineWidthMinPixels: 1,
         lineWidthMaxPixels: 2,
       })] : []),
+
+      // ── Phase 3: Seismic density heatmap (global zoom only) ───
+      ...(buildSeismicHeatmapLayer({
+        features: stream.seismic,
+        visible:  layerConfig.seismicHeatmap,
+        zoom:     viewState.zoom,
+      }) ? [buildSeismicHeatmapLayer({
+        features: stream.seismic,
+        visible:  layerConfig.seismicHeatmap,
+        zoom:     viewState.zoom,
+      })!] : []),
+
+      // ── Phase 3: Kinematic slip-rate vectors ────────────────
+      ...buildKinematicVectorLayers({
+        visible:    layerConfig.kinematicVectors,
+        animOffset,
+      }),
+
+      // ── Phase 3: Temporal decay rings (epoch-bound) ─────────
+      ...buildTemporalDecayLayers({
+        features:  stream.seismic,
+        passIndex: currentPassIndex,
+        visible:   layerConfig.temporalDecay,
+      }),
 
       // ── NISAR InSAR scenario overlay ────────────────────────
       new GeoJsonLayer({
@@ -310,7 +369,8 @@ export default function MapComponent() {
         }),
       ] : []),
     ];
-  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines]);
+  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines, stream.seismic, layerConfig, animOffset, viewState.zoom]);
+
 
   // Tooltip handler for DeckGLOverlay
   const getTooltip = ({ object }: any) => {
@@ -759,7 +819,100 @@ export default function MapComponent() {
       </MapLibreMap>
 
 
+      {/* ── HUD: Layer Controls ──────────────────────────────────── */}
+      <div
+        className="absolute"
+        style={{ left: 20, top: 80, zIndex: 40 }}
+      >
+        {/* Toggle button */}
+        <button
+          onClick={() => setLayerPanelOpen(o => !o)}
+          style={{
+            background: 'rgba(9,9,11,0.88)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            padding: '5px 10px',
+            backdropFilter: 'blur(12px)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          {/* SSE connection dot */}
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: stream.connected ? '#4ade80' : '#ef4444',
+            display: 'inline-block',
+            boxShadow: stream.connected ? '0 0 6px #4ade80' : 'none',
+          }} />
+          <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.15em' }}>
+            LAYERS
+          </span>
+        </button>
+
+        {/* Panel */}
+        {layerPanelOpen && (
+          <div style={{
+            marginTop: 2,
+            background: 'rgba(9,9,11,0.92)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            backdropFilter: 'blur(16px)',
+            padding: '8px 0',
+            minWidth: 170,
+          }}>
+            {([
+              { key: 'seismicHeatmap',   label: 'SEISMIC HEATMAP',   color: '#ef4444' },
+              { key: 'kinematicVectors', label: 'PLATE VECTORS',      color: '#fb923c' },
+              { key: 'temporalDecay',    label: 'EPOCH DECAY RINGS',  color: '#facc15' },
+              { key: 'volcanismAlerts',  label: 'VOLCANISM',          color: '#f97316' },
+              { key: 'tsunamiZones',     label: 'TSUNAMI ZONES',      color: '#60a5fa' },
+              { key: 'gnssStations',     label: 'GNSS STATIONS',      color: '#4ade80' },
+              { key: 'sentinelSwaths',   label: 'SENTINEL SWATHS',    color: '#a78bfa' },
+              { key: 'cryosphereExtent', label: 'CRYOSPHERE',         color: '#7dd3fc' },
+            ] as { key: keyof MapLayerConfig; label: string; color: string }[]).map(({ key, label, color }) => (
+              <button
+                key={key}
+                onClick={() => setLayerConfig(prev => ({ ...prev, [key]: !prev[key] }))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', padding: '4px 12px',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{
+                  width: 10, height: 10,
+                  borderRadius: '1px',
+                  background: layerConfig[key] ? color : 'transparent',
+                  border: `1px solid ${color}`,
+                  flexShrink: 0,
+                  transition: 'background 0.15s',
+                }} />
+                <span className="font-mono" style={{
+                  fontSize: 9, letterSpacing: '0.12em',
+                  color: layerConfig[key] ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)',
+                }}>
+                  {label}
+                </span>
+              </button>
+            ))}
+            {/* SSE status footer */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 6, padding: '5px 12px 2px' }}>
+              <span className="font-mono" style={{ fontSize: 8, color: stream.connected ? '#4ade80' : '#ef4444', letterSpacing: '0.12em' }}>
+                {stream.connected ? '● STREAM LIVE' : '● RECONNECTING...'}
+              </span>
+              {stream.lastUpdated && (
+                <span className="font-mono" style={{ fontSize: 7, color: 'rgba(255,255,255,0.25)', display: 'block', marginTop: 2 }}>
+                  {stream.lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── HUD: North Arrow ────────────────────────────────────── */}
+
       <div
         className="absolute pointer-events-none"
         style={{ left: 20, bottom: 60, zIndex: 30 }}

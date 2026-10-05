@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: nisar_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgis:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: nisar_postgis
+    environment:
+      POSTGRES_USER: nisar
+      POSTGRES_PASSWORD: nisar_secret
+      POSTGRES_DB: nisar_spatial
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./db/postgis_setup.sql:/docker-entrypoint-initdb.d/01_setup.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nisar -d nisar_spatial']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  redis_data:
+  postgis_data:

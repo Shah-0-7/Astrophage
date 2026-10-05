@@ -175,3 +175,112 @@ export interface ChartDataPoint {
   value: number;
   label?: string;
 }
+
+// ══════════════════════════════════════════════════════════════
+// Phase 1 – Unified SSE Stream Types
+// ══════════════════════════════════════════════════════════════
+
+/** Every source that can publish to the SSE stream */
+export type StreamSource =
+  | 'seismic'
+  | 'gnss'
+  | 'sentinel'
+  | 'volcanism'
+  | 'cryosphere'
+  | 'tsunami'
+  | 'heartbeat';
+
+/** Seismic sub-classification after PostGIS fault-distance check */
+export type SeismicSubtype = 'INTERPLATE' | 'INTRAPLATE';
+
+/** Top-level SSE frame sent from /api/stream */
+export interface StreamPayload {
+  type: StreamSource;
+  ts: number;
+  features: UnifiedFeature[];
+}
+
+/** One geographic feature normalised from any source */
+export interface UnifiedFeature {
+  id: string;
+  source: StreamSource;
+  subtype?: SeismicSubtype;
+  geometry: Geometry;
+  properties: SeismicProperties
+    | GNSSProperties
+    | SentinelProperties
+    | VolcanismProperties
+    | CryosphereProperties
+    | TsunamiProperties;
+}
+
+// ── Phase 2 – Per-source property interfaces ─────────────────
+
+export interface SeismicProperties {
+  magnitude: number;
+  place: string;
+  depth_km: number;
+  tsunami: 0 | 1;
+  sig: number;
+  event_time: string;      // ISO-8601
+  url: string;
+  fault_name?: string;
+  distance_m?: number;
+  subtype?: SeismicSubtype;
+}
+
+export interface GNSSProperties {
+  station_id: string;
+  network: string;
+  name: string;
+  deformation_rate_mm_yr: number;   // mm/yr, positive = uplift
+  last_updated: string;
+}
+
+export interface SentinelProperties {
+  product_id: string;
+  acquisition: string;               // ISO-8601
+  orbit_dir: 'ASC' | 'DESC';
+  track: number;
+  polarisation: string;
+  swath_km2: number;
+}
+
+export interface VolcanismProperties {
+  volcano_id: number;
+  name: string;
+  country: string;
+  aviation_color: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED';
+  alert_level: string;
+  last_eruption: string;
+  activity: string;
+}
+
+export interface CryosphereProperties {
+  date: string;
+  hemisphere: 'N' | 'S';
+  extent_sq_km: number;
+  anomaly_sq_km: number;           // delta vs 1981-2010 median
+}
+
+export interface TsunamiProperties {
+  warning_id: string;
+  title: string;
+  severity: 'WATCH' | 'WARNING' | 'ADVISORY' | 'INFO';
+  issued_at: string;
+  linked_event_id?: string;        // USGS event ID if known
+}
+
+// ── Layer toggle state (for sidebar) ─────────────────────────
+
+export interface MapLayerConfig {
+  seismicHeatmap: boolean;
+  kinematicVectors: boolean;
+  temporalDecay: boolean;
+  gnssStations: boolean;
+  sentinelSwaths: boolean;
+  volcanismAlerts: boolean;
+  cryosphereExtent: boolean;
+  tsunamiZones: boolean;
+}
+
