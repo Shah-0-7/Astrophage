@@ -48,8 +48,8 @@ export async function GET(_req: NextRequest) {
       const volcName   = rawTitle.split(',')[0]?.trim() ?? `Volcano-${i}`;
       const cleanDesc  = rawDesc.replace(/<[^>]+>/g, '').slice(0, 300);
 
-      const lat = parseFloat(latStr ?? '0') || VOLCANO_GEO[volcName]?.[1] ?? 0;
-      const lng = parseFloat(lngStr ?? '0') || VOLCANO_GEO[volcName]?.[0] ?? 0;
+      const lat = (parseFloat(latStr ?? '0') || VOLCANO_GEO[volcName]?.[1]) ?? 0;
+      const lng = (parseFloat(lngStr ?? '0') || VOLCANO_GEO[volcName]?.[0]) ?? 0;
 
       const colorMatch = (rawTitle + rawDesc).match(/\b(RED|ORANGE|YELLOW|GREEN)\b/i);
       const aviationColor = (colorMatch?.[1]?.toUpperCase() ?? 'YELLOW') as
