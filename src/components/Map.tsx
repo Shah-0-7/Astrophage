@@ -172,46 +172,40 @@ export default function MapComponent() {
   });
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
 
-  // Kinematic animation offset (driven by rAF)
-  const animOffsetRef = useRef(0);
-  const [animOffset, setAnimOffset]   = useState(0);
-  const rafRef        = useRef<number>();
-  useEffect(() => {
-    const tick = () => {
-      animOffsetRef.current = (animOffsetRef.current + 0.004) % 1;
-      setAnimOffset(animOffsetRef.current);
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-
   // MapLibre map ref for programmatic flyTo
   const mapRef = useRef<MapRef>(null);
 
-  const [viewState, setViewState] = useState({
+  // ── Coarse zoom for layer toggling (only updates on threshold crossing) ──
+  // Never updated during panning — zero re-renders from map movement.
+  const HEATMAP_THRESHOLD = 4;
+  const [aboveHeatmapZoom, setAboveHeatmapZoom] = useState(false);
+  const flyToZoomRef = useRef(bb?.zoom2D ?? 0);
+
+  // Initial viewport — uncontrolled: MapLibre owns the viewport from here on.
+  // React is NOT involved in frame-by-frame rendering; DeckGLOverlay syncs
+  // directly with MapLibre's GL context, so no onMove state update needed.
+  const initialViewState = useRef({
     longitude: bb?.center[0] ?? activeScenario.center[0],
     latitude:  bb?.center[1] ?? activeScenario.center[1],
     zoom:      bb?.zoom2D    ?? 0,
     pitch:     0,
     bearing:   0,
-  });
+  }).current;
 
   useEffect(() => {
     const bbox = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
-    const target = {
-      center: [bbox?.center[0] ?? activeScenario.center[0], bbox?.center[1] ?? activeScenario.center[1]] as [number, number],
-      zoom:   bbox?.zoom2D ?? 0,
-    };
-    mapRef.current?.flyTo({ ...target, duration: 2000, essential: true });
-    setViewState(prev => ({ ...prev, longitude: target.center[0], latitude: target.center[1], zoom: target.zoom }));
+    const center = [bbox?.center[0] ?? activeScenario.center[0], bbox?.center[1] ?? activeScenario.center[1]] as [number, number];
+    const zoom   = bbox?.zoom2D ?? 0;
+    flyToZoomRef.current = zoom;
+    mapRef.current?.flyTo({ center, zoom, duration: 2000, essential: true });
   }, [activeNodeId, activeScenario]);
 
   useEffect(() => {
     if (flyToCoords) {
+      const zoom = Math.max(flyToZoomRef.current, 6);
       mapRef.current?.flyTo({
         center: flyToCoords as [number, number],
-        zoom: Math.max(viewState.zoom, 6),
+        zoom,
         duration: 1500,
         essential: true,
       });
@@ -239,24 +233,25 @@ export default function MapComponent() {
 
       // ── Phase 3: Seismic density heatmap (global zoom only) ───
       ...(buildSeismicHeatmapLayer({
-        features: stream.seismic,
-        visible:  layerConfig.seismicHeatmap,
-        zoom:     viewState.zoom,
+        // Pass aboveHeatmapZoom so no zoom-dep needed in useMemo
+        features: stream.seismic.slice(0, 300),
+        visible:  layerConfig.seismicHeatmap && !aboveHeatmapZoom,
+        zoom:     aboveHeatmapZoom ? 99 : 0, // force show/hide
       }) ? [buildSeismicHeatmapLayer({
-        features: stream.seismic,
-        visible:  layerConfig.seismicHeatmap,
-        zoom:     viewState.zoom,
+        features: stream.seismic.slice(0, 300),
+        visible:  layerConfig.seismicHeatmap && !aboveHeatmapZoom,
+        zoom:     aboveHeatmapZoom ? 99 : 0,
       })!] : []),
 
-      // ── Phase 3: Kinematic slip-rate vectors ────────────────
+      // ── Phase 3: Kinematic slip-rate vectors (static, no rAF) ─
       ...buildKinematicVectorLayers({
         visible:    layerConfig.kinematicVectors,
-        animOffset,
+        animOffset: 0, // static – no 60fps setState
       }),
 
       // ── Phase 3: Temporal decay rings (epoch-bound) ─────────
       ...buildTemporalDecayLayers({
-        features:  stream.seismic,
+        features:  stream.seismic.slice(0, 80), // cap for perf
         passIndex: currentPassIndex,
         visible:   layerConfig.temporalDecay,
       }),
@@ -369,11 +364,11 @@ export default function MapComponent() {
         }),
       ] : []),
     ];
-  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines, stream.seismic, layerConfig, animOffset, viewState.zoom]);
+  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom]);
 
 
-  // Tooltip handler for DeckGLOverlay
-  const getTooltip = ({ object }: any) => {
+  // Stable tooltip callback — memoized so DeckGLOverlay doesn't rebuild each render
+  const getTooltip = useCallback(({ object }: any) => {
     if (!object) return null;
     if ('magnitude' in object) {
       const eq = object as USGSEarthquake;
@@ -425,7 +420,8 @@ export default function MapComponent() {
         padding: '10px 12px',
       },
     };
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div ref={containerRef} className="absolute inset-0 w-full h-full bg-black">
@@ -609,8 +605,12 @@ export default function MapComponent() {
 
       <MapLibreMap
         ref={mapRef}
-        {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
+        initialViewState={initialViewState}
+        onZoom={(evt) => {
+          // Only fire a React state update when crossing the heatmap zoom threshold
+          const nowAbove = evt.viewState.zoom > HEATMAP_THRESHOLD;
+          setAboveHeatmapZoom(prev => (prev !== nowAbove ? nowAbove : prev));
+        }}
         mapStyle={MAP_STYLE}
         attributionControl={false}
         renderWorldCopies={false}
