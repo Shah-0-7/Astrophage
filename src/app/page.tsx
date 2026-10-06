@@ -8,7 +8,6 @@
  * with persistent TelemetryHeader and PassScrubber.
  *
  * View routing:
- *   GLOBAL_SCHEMATIC  → GlobalSchematic
  *   EVENT_RADAR_2D    → EventRadar2D  (default)
  *   TOPO_CORE_3D      → TopoCore3D
  *
@@ -21,12 +20,6 @@ import dynamic from 'next/dynamic';
 import TelemetryHeader from '@/components/TelemetryHeader';
 import PassScrubber from '@/components/PassScrubber';
 import { useStore } from '@/lib/store';
-
-// Dynamically import all view panels to avoid SSR issues with canvas/WebGL
-const GlobalSchematic = dynamic(() => import('@/components/GlobalSchematic'), {
-  ssr: false,
-  loading: () => <ViewLoader label="LOADING TARGET MATRIX..." />,
-});
 
 const EventRadar2D = dynamic(() => import('@/components/EventRadar2D'), {
   ssr: false,
@@ -66,7 +59,6 @@ function ViewRouter() {
       </div>
 
       {/* View panels */}
-      {viewMode === 'GLOBAL_SCHEMATIC' && <GlobalSchematic />}
       {viewMode === 'EVENT_RADAR_2D'   && <EventRadar2D />}
       {viewMode === 'TOPO_CORE_3D'     && <TopoCore3D />}
     </div>

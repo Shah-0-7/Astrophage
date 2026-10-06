@@ -111,6 +111,7 @@ export default function MapComponent() {
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
   const currentPassIndex   = useStore(s => s.currentPassIndex);
   const flyToCoords        = useStore(s => s.flyToCoords);
+  const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
   const { activeScenario, filteredFeatures } = useNISARData();
 
   // Dynamic minZoom based on container size
@@ -326,8 +327,18 @@ export default function MapComponent() {
         radiusUnits: 'meters',
         radiusMinPixels: 3,
         radiusMaxPixels: 28,
-        pickable: true,
-        onClick: ({ object }) => { if (object) setSelectedEq(object); },
+        onClick: ({ object }) => { 
+          if (object) {
+            setSelectedEq(object);
+            const feature = stream.seismic.find(f => f.id === object.id) || {
+              id: object.id,
+              source: 'seismic',
+              geometry: { type: 'Point', coordinates: [object.coords[0], object.coords[1]] },
+              properties: { magnitude: object.magnitude, place: object.place, event_time: object.time, depth_km: object.coords[2] }
+            };
+            setSelectedGlobalEvent(feature as any);
+          }
+        },
         updateTriggers: { getRadius: earthquakes.length, getFillColor: earthquakes.length },
       }),
 

@@ -14,12 +14,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { TARGET_NODES, PASS_EPOCHS, BACKSCATTER_VALUES } from '@/lib/mockData';
-import type { PhaseFilterMode, PolVar } from '@/lib/types';
-import { useEarthquakeData } from '@/lib/useEarthquakeData';
+import type { PhaseFilterMode, PolVar, UnifiedFeature } from '@/lib/types';
+import { useSSEStream } from '@/lib/useSSEStream';
 
 // Dynamically import the Deck.gl map to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/Map'), {
@@ -53,7 +53,29 @@ export default function EventRadar2D() {
   const activeNode = TARGET_NODES.find(n => n.id === activeNodeId) ?? TARGET_NODES[0];
   const currentPass = PASS_EPOCHS[currentPassIndex];
   
-  const { earthquakes } = useEarthquakeData(4.5, 300);
+  const stream = useSSEStream();
+  const selectedGlobalEvent = useStore(s => s.selectedGlobalEvent);
+  const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
+
+  const globalEvents = useMemo(() => {
+    const all = [
+      ...stream.seismic,
+      ...stream.volcanism,
+      ...stream.tsunami,
+      ...stream.cryosphere,
+    ];
+    all.sort((a, b) => {
+      const getTs = (f: UnifiedFeature) => {
+        if (f.source === 'seismic') return new Date((f.properties as any).event_time).getTime();
+        if (f.source === 'volcanism') return new Date((f.properties as any).last_eruption).getTime();
+        if (f.source === 'tsunami') return new Date((f.properties as any).issued_at).getTime();
+        if (f.source === 'cryosphere') return new Date((f.properties as any).date).getTime();
+        return 0;
+      };
+      return getTs(b) - getTs(a);
+    });
+    return all.slice(0, 10);
+  }, [stream]);
 
   /** calculateBackscatterRatio: return dB value for active polarisation */
   const backscatterDb = BACKSCATTER_VALUES[activePolarisation];
@@ -88,7 +110,6 @@ export default function EventRadar2D() {
         <div className="p-3 border-b border-white/10">
           <p className="panel-label mb-2">MODES</p>
           {[
-            { id: 'GLOBAL_SCHEMATIC' as const, icon: '◎', label: 'GLOBAL SCHEMATIC' },
             { id: 'EVENT_RADAR_2D' as const,   icon: '⊕', label: '2D EVENT RADAR' },
             { id: 'TOPO_CORE_3D' as const,     icon: '△', label: '3D TOPO CORE' },
           ].map(m => {
@@ -236,16 +257,68 @@ export default function EventRadar2D() {
         </div>
       </div>
 
-      {/* ── Right: SAR Telemetry panel ─────────────────────── */}
+      {/* ── Right: SAR Telemetry panel / Event Details ─────────────────────── */}
       <div className="w-[240px] flex-shrink-0 border-l border-white/10 glass-sidebar flex flex-col">
-        {/* Panel header */}
-        <div className="p-3 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="status-dot nominal" />
-            <span className="panel-label text-white">SAR TELEMETRY</span>
-          </div>
-          <span className="panel-label">NISAR L-BAND</span>
-        </div>
+        {selectedGlobalEvent ? (
+          <>
+            <div className="p-3 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="status-dot" style={{ background: 'var(--crimson)' }} />
+                <span className="panel-label text-white uppercase">{selectedGlobalEvent.source} EVENT</span>
+              </div>
+              <button onClick={() => setSelectedGlobalEvent(null)} className="text-white/50 hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-3 border-b border-white/10">
+              <h4 className="font-mono text-sm font-bold text-white mb-2 break-words">
+                {selectedGlobalEvent.source === 'seismic' && (selectedGlobalEvent.properties as any).place}
+                {selectedGlobalEvent.source === 'volcanism' && (selectedGlobalEvent.properties as any).name}
+                {selectedGlobalEvent.source === 'tsunami' && (selectedGlobalEvent.properties as any).title}
+                {selectedGlobalEvent.source === 'cryosphere' && 'Ice Extent Update'}
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="panel-label">MAGNITUDE/SEVERITY</span>
+                  <span className="font-mono text-[10px] font-bold text-white">
+                    {selectedGlobalEvent.source === 'seismic' && `M${(selectedGlobalEvent.properties as any).magnitude.toFixed(1)}`}
+                    {selectedGlobalEvent.source === 'volcanism' && (selectedGlobalEvent.properties as any).alert_level}
+                    {selectedGlobalEvent.source === 'tsunami' && (selectedGlobalEvent.properties as any).severity}
+                    {selectedGlobalEvent.source === 'cryosphere' && 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="panel-label">TIME</span>
+                  <span className="font-mono text-[10px] text-white">
+                    {selectedGlobalEvent.source === 'seismic' && new Date((selectedGlobalEvent.properties as any).event_time).toLocaleString()}
+                    {selectedGlobalEvent.source === 'volcanism' && new Date((selectedGlobalEvent.properties as any).last_eruption).toLocaleString()}
+                    {selectedGlobalEvent.source === 'tsunami' && new Date((selectedGlobalEvent.properties as any).issued_at).toLocaleString()}
+                    {selectedGlobalEvent.source === 'cryosphere' && new Date((selectedGlobalEvent.properties as any).date).toLocaleDateString()}
+                  </span>
+                </div>
+                {selectedGlobalEvent.source === 'seismic' && (
+                  <div className="flex justify-between items-center">
+                    <span className="panel-label">DEPTH</span>
+                    <span className="font-mono text-[10px] text-white">{(selectedGlobalEvent.properties as any).depth_km.toFixed(1)} km</span>
+                  </div>
+                )}
+                {selectedGlobalEvent.source === 'cryosphere' && (
+                  <div className="flex justify-between items-center">
+                    <span className="panel-label">AREA COVERED</span>
+                    <span className="font-mono text-[10px] text-white">{(selectedGlobalEvent.properties as any).extent_sq_km.toLocaleString()} km²</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-3 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="status-dot nominal" />
+                <span className="panel-label text-white">SAR TELEMETRY</span>
+              </div>
+              <span className="panel-label">NISAR L-BAND</span>
+            </div>
 
         {/* Displacement + Coherence */}
         <div className="p-3 grid grid-cols-2 gap-2 border-b border-white/10">
@@ -341,25 +414,36 @@ export default function EventRadar2D() {
           </div>
         </div>
 
-        {/* USGS Events */}
+          </>
+        )}
+
+        {/* Global Events */}
         <div className="flex-1 overflow-y-auto p-3 mt-auto min-h-0">
-          <p className="panel-label mb-2">USGS EVENTS</p>
+          <p className="panel-label mb-2">GLOBAL EVENTS</p>
           <div className="space-y-1.5">
-            {earthquakes.slice(0, 4).map(eq => (
+            {globalEvents.map(evt => (
               <div 
-                key={eq.id}
-                onClick={() => setFlyToCoords([eq.coords[0], eq.coords[1]])}
+                key={evt.id}
+                onClick={() => {
+                  setSelectedGlobalEvent(evt);
+                  const coords = evt.geometry.type === 'Point' ? (evt.geometry as any).coordinates : null;
+                  if (coords) setFlyToCoords([coords[0], coords[1]]);
+                }}
                 className="cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border border-white/5 bg-black/20"
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--crimson)' }}>
-                    M{eq.magnitude.toFixed(1)}
+                  <span className="font-mono text-[11px] font-bold" style={{ color: evt.source === 'seismic' ? 'var(--crimson)' : 'var(--accent-cyan)' }}>
+                    {evt.source.toUpperCase()}
                   </span>
                   <span className="font-mono text-[9px] text-white/50">
-                    {new Date(eq.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {evt.source === 'seismic' && new Date((evt.properties as any).event_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {evt.source === 'volcanism' && new Date((evt.properties as any).last_eruption).toLocaleDateString()}
+                    {evt.source === 'tsunami' && new Date((evt.properties as any).issued_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </span>
                 </div>
-                <p className="font-mono text-[9px] text-white/70 truncate" title={eq.place}>{eq.place}</p>
+                <p className="font-mono text-[9px] text-white/70 truncate" title={(evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title}>
+                  {(evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title || 'Global Event'}
+                </p>
               </div>
             ))}
           </div>

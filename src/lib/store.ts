@@ -100,6 +100,10 @@ interface StoreState {
   /* ── Jump to coordinates ────────────────────────────────── */
   flyToCoords: [number, number] | null;
   setFlyToCoords: (coords: [number, number] | null) => void;
+
+  /* ── Global Event Selection ─────────────────────────────── */
+  selectedGlobalEvent: import('./types').UnifiedFeature | null;
+  setSelectedGlobalEvent: (evt: import('./types').UnifiedFeature | null) => void;
 }
 
 const defaultScenario = ALL_SCENARIOS[0];
@@ -217,4 +221,8 @@ export const useStore = create<StoreState>((set, get) => ({
   /* ── Jump to coordinates ────────────────────────────────── */
   flyToCoords: null,
   setFlyToCoords: (coords) => set({ flyToCoords: coords }),
+
+  /* ── Global Event Selection ─────────────────────────────── */
+  selectedGlobalEvent: null,
+  setSelectedGlobalEvent: (evt) => set({ selectedGlobalEvent: evt }),
 }));
