@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================
  * EventRadar2D – View Mode: EVENT_RADAR_2D
  * ============================================================
@@ -85,9 +85,35 @@ export default function EventRadar2D() {
   /** calculateBackscatterRatio: return dB value for active polarisation */
   const backscatterDb = BACKSCATTER_VALUES[activePolarisation];
 
-  const [searchActive, setSearchActive] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [eventsExpanded, setEventsExpanded] = useState(false);
 
+
+  const EVT_COLOR: Record<string, string> = {
+    seismic: '#ef4444', volcanism: '#f97316', tsunami: '#60a5fa', cryosphere: '#7dd3fc',
+  };
+  const EVT_ICON: Record<string, string> = {
+    seismic: '\u25b2', volcanism: '\u2b21', tsunami: '\u2248', cryosphere: '\u25c6',
+  };
+
+  function handleEventClick(evt: UnifiedFeature) {
+    setSelectedGlobalEvent(evt);
+    const coords = evt.geometry.type === 'Point' ? (evt.geometry as any).coordinates : null;
+    if (coords) setFlyToCoords([coords[0], coords[1]]);
+    const evtTime = new Date(
+      evt.source === 'seismic' ? (evt.properties as any).event_time :
+      evt.source === 'volcanism' ? (evt.properties as any).last_eruption :
+      evt.source === 'tsunami' ? (evt.properties as any).issued_at :
+      (evt.properties as any).date || Date.now()
+    ).getTime();
+    let closestIdx = 0; let minDiff = Infinity;
+    PASS_EPOCHS.forEach((pass, idx) => {
+      const diff = Math.abs(new Date(pass.date).getTime() - evtTime);
+      if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
+    });
+    setCurrentPassIndex(closestIdx);
+  }
+  const [searchValue, setSearchValue] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
   const STATUS_LABEL: Record<string, string> = {
     NOMINAL: 'NOMINAL', ACQUIRING: 'ACQUIRING', STANDBY: 'STANDBY',
   };
@@ -185,8 +211,8 @@ export default function EventRadar2D() {
         </div>
       </div>
 
-      {/* ── Center: Map + optional location strip ──────────── */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* -- Main content row (sidebars + map) -- */}
+      <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* Location strip – only shown when a global event is selected */}
         {selectedGlobalEvent && (
           <div
@@ -209,10 +235,31 @@ export default function EventRadar2D() {
           </div>
         )}
 
-        {/* Map canvas */}
-        <div className="absolute inset-0" style={{ top: selectedGlobalEvent ? 36 : 0 }}>
-          <MapComponent />
+        {/* Map canvas -- rectangular on mobile, fill on desktop */}
+        <div className="relative flex-shrink-0 md:flex-1" style={{ height: "clamp(190px,52vw,300px)" }}>
+          <div className="absolute inset-0"><MapComponent /></div>
         </div>
+
+        {/* Mobile-only: event pills */}
+        {globalEvents.length > 0 && (
+          <div className="md:hidden flex-shrink-0 overflow-x-auto" style={{ background: "rgba(9,9,11,0.95)", borderTop: "1px solid rgba(255,255,255,0.07)", padding: "6px 10px" }}>
+            <div className="flex gap-2" style={{ width: "max-content" }}>
+              {globalEvents.slice(0, 8).map(evt => {
+                const color = EVT_COLOR[evt.source] ?? "#fff";
+                const icon  = EVT_ICON[evt.source]  ?? "?";
+                const label = (evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title || evt.source.toUpperCase();
+                return (
+                  <button key={evt.id} onClick={() => handleEventClick(evt)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, background: `${color}18`, border: `1px solid ${color}55`, borderRadius: 2, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }}
+                  >
+                    <span style={{ fontSize: 9, color }}>{icon}</span>
+                    <span className="font-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.75)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Right: SAR Telemetry panel / Event Details ─────────────────────── */}
@@ -381,51 +428,60 @@ export default function EventRadar2D() {
           </>
         )}
 
-        {/* Global Events */}
-        <div className="flex-1 overflow-y-auto p-3 mt-auto min-h-0">
-          <p className="panel-label mb-2">GLOBAL EVENTS</p>
-          <div className="space-y-1.5">
-            {globalEvents.map(evt => (
-              <div 
-                key={evt.id}
-                onClick={() => {
-                  setSelectedGlobalEvent(evt);
-                  const coords = evt.geometry.type === 'Point' ? (evt.geometry as any).coordinates : null;
-                  if (coords) setFlyToCoords([coords[0], coords[1]]);
-                  
-                  const evtTime = new Date(
-                    evt.source === 'seismic' ? (evt.properties as any).event_time :
-                    evt.source === 'volcanism' ? (evt.properties as any).last_eruption :
-                    evt.source === 'tsunami' ? (evt.properties as any).issued_at :
-                    (evt.properties as any).date || Date.now()
-                  ).getTime();
-                  
-                  let closestIdx = 0;
-                  let minDiff = Infinity;
-                  PASS_EPOCHS.forEach((pass, idx) => {
-                    const diff = Math.abs(new Date(pass.date).getTime() - evtTime);
-                    if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
-                  });
-                  setCurrentPassIndex(closestIdx);
-                }}
-                className="cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border border-white/5 bg-black/20"
+        {/* -- Global Events (collapsible) -- */}
+        <div className="border-t border-white/10 flex flex-col" style={{ flexShrink: 0 }}>
+          <button
+            onClick={() => setEventsExpanded(o => !o)}
+            className="flex items-center justify-between px-3 py-2 w-full hover:bg-white/5 transition-colors"
+            style={{ background: "transparent", border: "none", cursor: "pointer" }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="panel-label text-white">GLOBAL EVENTS</span>
+              {globalEvents.length > 0 && (
+                <span className="font-mono text-[8px] px-1.5 py-0.5" style={{ background: "rgba(239,68,68,0.18)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 2 }}>
+                  {globalEvents.length}
+                </span>
+              )}
+            </div>
+            <motion.span animate={{ rotate: eventsExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="font-mono text-[10px] text-white/40">
+              {eventsExpanded ? "^" : "v"}
+            </motion.span>
+          </button>
+          <AnimatePresence>
+            {eventsExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: "easeInOut" }}
+                style={{ overflow: "hidden" }}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-mono text-[11px] font-bold" style={{ color: evt.source === 'seismic' ? 'var(--crimson)' : 'var(--accent-cyan)' }}>
-                    {evt.source.toUpperCase()}
-                  </span>
-                  <span className="font-mono text-[9px] text-white/50">
-                    {evt.source === 'seismic' && new Date((evt.properties as any).event_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    {evt.source === 'volcanism' && new Date((evt.properties as any).last_eruption).toLocaleDateString()}
-                    {evt.source === 'tsunami' && new Date((evt.properties as any).issued_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </span>
+                <div className="overflow-y-auto p-3 pt-1 space-y-1.5" style={{ maxHeight: 260 }}>
+                  {globalEvents.length === 0 ? (
+                    <p className="font-mono text-[9px] text-white/30 text-center py-4">NO LIVE EVENTS</p>
+                  ) : globalEvents.map(evt => (
+                    <div key={evt.id} onClick={() => handleEventClick(evt)}
+                      className="cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border border-white/5 bg-black/20"
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-mono text-[11px] font-bold" style={{ color: EVT_COLOR[evt.source] ?? "var(--crimson)" }}>
+                          {EVT_ICON[evt.source] ?? "?"} {evt.source.toUpperCase()}
+                        </span>
+                        <span className="font-mono text-[9px] text-white/50">
+                          {evt.source === "seismic" && new Date((evt.properties as any).event_time).toLocaleTimeString([], {hour: "2-digit", minute:"2-digit"})}
+                          {evt.source === "volcanism" && new Date((evt.properties as any).last_eruption).toLocaleDateString()}
+                          {evt.source === "tsunami" && new Date((evt.properties as any).issued_at).toLocaleTimeString([], {hour: "2-digit", minute:"2-digit"})}
+                        </span>
+                      </div>
+                      <p className="font-mono text-[9px] text-white/70 truncate">
+                        {(evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title || "Global Event"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <p className="font-mono text-[9px] text-white/70 truncate" title={(evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title}>
-                  {(evt.properties as any).place || (evt.properties as any).name || (evt.properties as any).title || 'Global Event'}
-                </p>
-              </div>
-            ))}
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
