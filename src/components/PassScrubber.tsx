@@ -84,7 +84,7 @@ export default function PassScrubber() {
         background: 'rgba(9,9,11,0.96)',
         borderTop: '1px solid rgba(255,255,255,0.08)',
         backdropFilter: 'blur(20px)',
-        padding: '10px 20px 14px',
+        padding: '8px 12px 10px',
       }}
     >
       {/* ── Top row: controls + epoch display + metrics ─────── */}
@@ -145,7 +145,7 @@ export default function PassScrubber() {
         <div className="flex-1" />
 
         {/* Δd ACCUM */}
-        <div className="text-right">
+        <div className="hidden sm:block text-right">
           <p className="panel-label">Δd ACCUM</p>
           <motion.p
             key={currentPassIndex}
@@ -158,10 +158,10 @@ export default function PassScrubber() {
           </motion.p>
         </div>
 
-        <div className="w-px h-8 bg-white/10" />
+        <div className="hidden sm:block w-px h-8 bg-white/10" />
 
         {/* Residual error */}
-        <div className="text-right">
+        <div className="hidden sm:block text-right">
           <p className="panel-label">RESIDUAL</p>
           <p className="font-mono text-[13px] font-700 text-white/60">
             ±{currentPass?.residualError?.toFixed(1) ?? '—'} mm
@@ -181,13 +181,14 @@ export default function PassScrubber() {
           style={{ '--progress': `${progress}%` } as React.CSSProperties}
         />
 
-        {/* Pass tick marks */}
+                {/* Pass tick marks */}
         <div className="relative mt-1.5 h-5">
           {PASS_EPOCHS.map((pass, idx) => {
             const left = TOTAL_PASSES > 1 ? (idx / (TOTAL_PASSES - 1)) * 100 : 0;
             const isCurrent = idx === currentPassIndex;
-            // Show label for every 3rd pass
-            const showLabel = idx === 0 || idx === TOTAL_PASSES - 1 || idx % 3 === 0;
+            const hasEvents = pass.events && pass.events.length > 0;
+            // Show label for current, events, or every 3rd pass
+            const showLabel = isCurrent || hasEvents || idx === 0 || idx === TOTAL_PASSES - 1 || idx % 3 === 0;
             return (
               <div
                 key={pass.label}
@@ -196,23 +197,29 @@ export default function PassScrubber() {
                   left: `${left}%`,
                   transform: 'translateX(-50%)',
                   cursor: 'pointer',
+                  zIndex: hasEvents ? 10 : 1,
                 }}
                 onClick={() => setCurrentPassIndex(idx)}
               >
                 <div
                   className="w-[1px]"
                   style={{
-                    height: 6,
-                    background: isCurrent ? 'var(--crimson)' : 'var(--white-30)',
-                    boxShadow: isCurrent ? '0 0 6px var(--crimson)' : undefined,
+                    height: hasEvents ? 8 : 6,
+                    background: isCurrent ? 'var(--crimson)' : hasEvents ? '#ef4444' : 'var(--white-30)',
+                    boxShadow: (isCurrent || hasEvents) ? '0 0 6px var(--crimson)' : undefined,
                   }}
                 />
                 {showLabel && (
                   <span
-                    className="font-mono text-[8px] mt-0.5 whitespace-nowrap"
+                    className="hidden sm:flex flex-col items-center font-mono text-[8px] mt-0.5 whitespace-nowrap"
                     style={{ color: isCurrent ? 'var(--white)' : 'var(--text-muted)' }}
                   >
-                    {pass.date.slice(0, 7)} [{pass.label}]
+                    <span>{pass.date.slice(0, 7)}</span>
+                    {hasEvents && (
+                      <span style={{ color: '#ef4444', fontSize: 7, marginTop: 1, letterSpacing: '0.5px' }}>
+                        {pass.events?.join('/').toUpperCase()}
+                      </span>
+                    )}
                   </span>
                 )}
               </div>

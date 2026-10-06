@@ -11,7 +11,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { UnifiedFeature, SeismicProperties } from '@/lib/types';
 
@@ -39,6 +39,7 @@ export function buildSeismicHeatmapLayer(props: Props) {
 
   const data = props.features.map(f => {
     const p = f.properties as SeismicProperties;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [lng, lat] = (f.geometry as any).coordinates;
     return { position: [lng, lat] as [number, number], weight: p.magnitude ?? 1 };
   });
@@ -46,8 +47,8 @@ export function buildSeismicHeatmapLayer(props: Props) {
   return new HeatmapLayer({
     id:           'seismic-heatmap',
     data,
-    getPosition:  (d: any) => d.position,
-    getWeight:    (d: any) => Math.pow(10, (d.weight - 3) * 0.3), // log-scale weight
+    getPosition:  (d: { position: [number, number], weight: number }) => d.position,
+    getWeight:    (d: { position: [number, number], weight: number }) => Math.pow(10, (d.weight - 3) * 0.3), // log-scale weight
     radiusPixels: 60,
     intensity:    1.5,
     threshold:    0.05,

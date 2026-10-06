@@ -115,7 +115,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
 
   /* ── Active target ──────────────────────────────────────── */
-  activeNodeId: 'TC-89',
+  activeNodeId: null as string | null,
   setActiveNodeId: (id) => set({ activeNodeId: id }),
 
   /* ── Legacy scenario ────────────────────────────────────── */

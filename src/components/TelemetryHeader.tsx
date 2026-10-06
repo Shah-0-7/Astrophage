@@ -80,7 +80,7 @@ export default function TelemetryHeader() {
         </div>
 
         {/* ── Satellite parameter chips ─────────────────────── */}
-        <div className="flex items-center flex-1 justify-center gap-0">
+        <div className="hidden md:flex items-center flex-1 justify-center gap-0">
           <span className="telem-chip">
             <span>ALT:</span><span className="value">{altitude} KM</span>
           </span>
@@ -102,9 +102,12 @@ export default function TelemetryHeader() {
             <span style={{ color: 'var(--nominal)' }}>ACTIVE</span>
           </span>
         </div>
+        {/* Spacer pushes UTC/POD right on mobile */}
+        <div className="flex-1 md:hidden" />
+
 
         {/* ── UTC timestamp ─────────────────────────────────── */}
-        <div className="px-4 border-l border-white/10 border-r border-white/10">
+        <div className="hidden sm:block px-4 border-l border-white/10 border-r border-white/10">
           <p className="font-mono text-[10px] font-500 tracking-widest text-white/50 leading-none text-right">SYS.CLOCK</p>
           <motion.p
             key={utc.slice(12, 20)}
@@ -122,7 +125,7 @@ export default function TelemetryHeader() {
             className="status-dot"
             style={{ background: statusColor, boxShadow: `0 0 6px ${statusColor}` }}
           />
-          <span className="font-mono text-[11px] font-600 tracking-widest" style={{ color: statusColor }}>
+          <span className="hidden sm:inline font-mono text-[11px] font-600 tracking-widest" style={{ color: statusColor }}>
             POD {podStatus}
           </span>
         </div>

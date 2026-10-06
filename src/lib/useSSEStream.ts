@@ -107,7 +107,7 @@ export function useSSEStream(): SSEState {
       if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts.current++;
         const delay = RECONNECT_DELAY_MS * Math.min(reconnectAttempts.current, 4);
-        reconnectTimer.current = setTimeout(connect, delay);
+        reconnectTimer.current = setTimeout(() => connect(), delay);
       }
     };
   }, [handlePayload]);
@@ -118,7 +118,10 @@ export function useSSEStream(): SSEState {
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       esRef.current?.close();
-      workerRef.current?.terminate();
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
     };
   }, [connect]);
 

@@ -98,7 +98,7 @@ export default function EventRadar2D() {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', overflow: 'hidden' }}>
       {/* ── Left: contextual sidebar ──────────────────────── */}
-      <div className="w-[188px] flex-shrink-0 glass-sidebar flex flex-col border-r border-white/10">
+      <div className="hidden md:flex w-[188px] flex-shrink-0 glass-sidebar flex-col border-r border-white/10">
         {/* Mode indicator */}
         <div className="p-3 border-b border-white/10">
           <p className="panel-label">SUBSYSTEM</p>
@@ -185,85 +185,38 @@ export default function EventRadar2D() {
         </div>
       </div>
 
-      {/* ── Center: Map + search + radar overlay ──────────── */}
+      {/* ── Center: Map + optional location strip ──────────── */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Breadcrumb / search bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-0"
-             style={{ height: 44, background: 'rgba(9,9,11,0.85)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}>
-          {/* Reticle */}
-          <div className="px-3 border-r border-white/10">
-            <div className="w-4 h-4 relative flex-shrink-0">
-              <div className="absolute inset-0 rounded-full border border-white/30" />
-              <div className="absolute inset-[4px] rounded-full bg-white/60" />
-            </div>
+        {/* Location strip – only shown when a global event is selected */}
+        {selectedGlobalEvent && (
+          <div
+            className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-3"
+            style={{ height: 36, background: 'rgba(9,9,11,0.90)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}
+          >
+            <span className="font-mono text-[9px] text-white/40 tracking-wider">⊕ LOCATION</span>
+            <span className="font-mono text-[11px] text-white/80">
+              {(selectedGlobalEvent.properties as any).place ||
+               (selectedGlobalEvent.properties as any).name ||
+               (selectedGlobalEvent.properties as any).title ||
+               'Global Event'}
+            </span>
+            {selectedGlobalEvent.geometry.type === 'Point' && (
+              <span className="font-mono text-[9px] text-white/35 ml-auto">
+                {((selectedGlobalEvent.geometry as any).coordinates[1] as number).toFixed(3)}°&nbsp;
+                {((selectedGlobalEvent.geometry as any).coordinates[0] as number).toFixed(3)}°
+              </span>
+            )}
           </div>
-          {/* Breadcrumb */}
-          <div className="px-3 flex items-center gap-2 flex-1 border-r border-white/10">
-            <input
-              type="text"
-              placeholder="Location"
-              value={searchValue || 'San Francisco, California, USA...'}
-              onChange={e => setSearchValue(e.target.value)}
-              onFocus={() => setSearchActive(true)}
-              onBlur={() => setSearchActive(false)}
-              className="bg-transparent outline-none font-mono text-[11px] text-white/80 flex-1"
-            />
-          </div>
-          {/* Coords display */}
-          <div className="px-4 border-r border-white/10">
-            <p className="font-mono text-[10px] text-white/40 tracking-wider">
-              ⊕ Location  {activeNode.locationDetail.split('//')[0].trim()}
-            </p>
-          </div>
-          {/* Active search toggle */}
-          <div className="px-3 flex items-center gap-2">
-            <span className="panel-label">ACTIVE SEARCH</span>
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse-glow"
-              style={{ background: searchActive ? 'var(--crimson)' : 'var(--text-muted)' }}
-            />
-          </div>
-        </div>
+        )}
 
         {/* Map canvas */}
-        <div className="absolute inset-0 top-[44px]">
+        <div className="absolute inset-0" style={{ top: selectedGlobalEvent ? 36 : 0 }}>
           <MapComponent />
-        </div>
-
-        {/* Warning callout overlay */}
-        <div
-          className="absolute bottom-4 left-4 z-20 p-4"
-          style={{
-            width: 240,
-            background: 'rgba(9,9,11,0.88)',
-            border: '1px solid var(--border-zinc)',
-            backdropFilter: 'blur(16px)',
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[var(--acquiring)] text-xs">⚠</span>
-            <span className="font-mono text-[9px] font-700 text-white/60 tracking-widest uppercase">WARNING</span>
-            <span className="font-mono text-[9px] text-white/40">Surface Subsidence / Rupture</span>
-            <div className="status-dot ml-auto" style={{ background: 'var(--crimson)', boxShadow: '0 0 6px var(--crimson)' }} />
-          </div>
-          <h4 className="font-mono text-[18px] font-700 text-white leading-tight">
-            {activeNode.label === 'SAN ANDREAS' ? 'Ocean Beach' : activeNode.label}
-          </h4>
-          <p className="font-mono text-[9px] text-white/40 mt-1 tracking-wider">
-            37.7576793° N // -122.5076391° W
-          </p>
-          <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
-            <span className="panel-label">ACTIVE SEARCH</span>
-            <div className="flex items-center gap-1">
-              <button className="tac-btn active text-[9px] h-6 px-2">on</button>
-              <button className="tac-btn text-[9px] h-6 px-2">off</button>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* ── Right: SAR Telemetry panel / Event Details ─────────────────────── */}
-      <div className="w-[240px] flex-shrink-0 border-l border-white/10 glass-sidebar flex flex-col">
+      <div className="hidden md:flex w-[240px] flex-shrink-0 border-l border-white/10 glass-sidebar flex-col">
         {selectedGlobalEvent ? (
           <>
             <div className="p-3 border-b border-white/10 flex items-center justify-between">

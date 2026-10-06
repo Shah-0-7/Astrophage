@@ -183,24 +183,26 @@ export default function MapComponent() {
   const [aboveHeatmapZoom, setAboveHeatmapZoom] = useState(false);
   const flyToZoomRef = useRef(bb?.zoom2D ?? 0);
 
-  // Initial viewport — uncontrolled: MapLibre owns the viewport from here on.
-  // React is NOT involved in frame-by-frame rendering; DeckGLOverlay syncs
-  // directly with MapLibre's GL context, so no onMove state update needed.
+  // Initial viewport — world-view, fully zoomed out.
+  // MapLibre owns the viewport from here on; React is NOT involved in
+  // frame-by-frame rendering. DeckGLOverlay syncs directly with MapLibre's GL context.
   const initialViewState = useRef({
-    longitude: bb?.center[0] ?? activeScenario.center[0],
-    latitude:  bb?.center[1] ?? activeScenario.center[1],
-    zoom:      bb?.zoom2D    ?? 0,
+    longitude: 0,
+    latitude:  20,
+    zoom:      1.5,
     pitch:     0,
     bearing:   0,
   }).current;
 
   useEffect(() => {
-    const bbox = activeNodeId ? NODE_BOUNDING_BOXES[activeNodeId] : null;
-    const center = [bbox?.center[0] ?? activeScenario.center[0], bbox?.center[1] ?? activeScenario.center[1]] as [number, number];
-    const zoom   = bbox?.zoom2D ?? 0;
+    if (!activeNodeId) return; // Stay max zoomed out initially
+    const bbox = NODE_BOUNDING_BOXES[activeNodeId];
+    if (!bbox) return;
+    const center = [bbox.center[0], bbox.center[1]] as [number, number];
+    const zoom   = bbox.zoom2D;
     flyToZoomRef.current = zoom;
     mapRef.current?.flyTo({ center, zoom, duration: 2000, essential: true });
-  }, [activeNodeId, activeScenario]);
+  }, [activeNodeId]);
 
   useEffect(() => {
     if (flyToCoords) {
@@ -259,60 +261,62 @@ export default function MapComponent() {
       }),
 
       // ── NISAR InSAR scenario overlay ────────────────────────
-      new GeoJsonLayer({
-        id: `nisar-insar-${activeScenario.id}-${phaseFilterMode}`,
-        data: filteredFeatures,
-        pickable: true,
-        stroked: true,
-        filled: true,
-        extruded: false,
-        wireframe: !isFiltered,
-        lineWidthScale: 20,
-        lineWidthMinPixels: 1,
-        getElevation: (f: any) => {
-          const p = f.properties;
-          if (p.category === 'glacier')    return (p.velocity || 0) * 10;
-          if (p.category === 'earthquake') return Math.abs(p.displacement || 0) * 50;
-          return 40;
-        },
-        getFillColor: (f: any) => {
-          const p = f.properties;
-          if (p.color) return [...(p.color as [number, number, number]), Math.floor((p.opacity || 0.6) * 255)] as [number, number, number, number];
-          if (isFiltered) {
-            if (p.category === 'earthquake') {
-              const coh = p.displacement ? Math.min(Math.abs(p.displacement) / 30, 1) : 0;
-              if (coh < coherenceThreshold) return [0, 0, 0, 0];
-              return [239, 68, 68, Math.floor(coh * 220) + 35];
+      ...(activeNodeId ? [
+        new GeoJsonLayer({
+          id: `nisar-insar-${activeScenario.id}-${phaseFilterMode}`,
+          data: filteredFeatures,
+          pickable: true,
+          stroked: true,
+          filled: true,
+          extruded: false,
+          wireframe: !isFiltered,
+          lineWidthScale: 20,
+          lineWidthMinPixels: 1,
+          getElevation: (f: any) => {
+            const p = f.properties;
+            if (p.category === 'glacier')    return (p.velocity || 0) * 10;
+            if (p.category === 'earthquake') return Math.abs(p.displacement || 0) * 50;
+            return 40;
+          },
+          getFillColor: (f: any) => {
+            const p = f.properties;
+            if (p.color) return [...(p.color as [number, number, number]), Math.floor((p.opacity || 0.6) * 255)] as [number, number, number, number];
+            if (isFiltered) {
+              if (p.category === 'earthquake') {
+                const coh = p.displacement ? Math.min(Math.abs(p.displacement) / 30, 1) : 0;
+                if (coh < coherenceThreshold) return [0, 0, 0, 0];
+                return [239, 68, 68, Math.floor(coh * 220) + 35];
+              }
+              if (p.category === 'glacier')     return [96, 165, 250, 180];
+              if (p.category === 'agriculture') return [74, 222, 128, 160];
+            } else {
+              if (p.category === 'earthquake') {
+                const phase = (Math.abs(p.displacement || 0) * 3.14) % (2 * Math.PI);
+                const v = Math.floor((Math.sin(phase) + 1) * 0.5 * 200);
+                return [v, v, v, 180];
+              }
             }
             if (p.category === 'glacier')     return [96, 165, 250, 180];
-            if (p.category === 'agriculture') return [74, 222, 128, 160];
-          } else {
-            if (p.category === 'earthquake') {
-              const phase = (Math.abs(p.displacement || 0) * 3.14) % (2 * Math.PI);
-              const v = Math.floor((Math.sin(phase) + 1) * 0.5 * 200);
-              return [v, v, v, 180];
-            }
-          }
-          if (p.category === 'glacier')     return [96, 165, 250, 180];
-          if (p.category === 'agriculture') return [74, 222, 128, 150];
-          if (p.category === 'wildfire')    return [239, 68, 68, 200];
-          return [255, 255, 255, 80];
-        },
-        getLineColor: (f: any) => {
-          if (f.geometry.type === 'LineString') return [239, 68, 68, 220];
-          return [255, 255, 255, 40];
-        },
-        getLineWidth: 1,
-        getPointRadius: (f: any) => {
-          const p = f.properties;
-          if (p.radius)                    return p.radius * 100;
-          if (p.category === 'earthquake') return Math.abs(p.displacement || 5) * 50;
-          return 80;
-        },
-        pointRadiusMinPixels: 2,
-        pointRadiusMaxPixels: 18,
-        transitions: { getFillColor: 400, getElevation: 400, getPointRadius: 400 },
-      }),
+            if (p.category === 'agriculture') return [74, 222, 128, 150];
+            if (p.category === 'wildfire')    return [239, 68, 68, 200];
+            return [255, 255, 255, 80];
+          },
+          getLineColor: (f: any) => {
+            if (f.geometry.type === 'LineString') return [239, 68, 68, 220];
+            return [255, 255, 255, 40];
+          },
+          getLineWidth: 1,
+          getPointRadius: (f: any) => {
+            const p = f.properties;
+            if (p.radius)                    return p.radius * 100;
+            if (p.category === 'earthquake') return Math.abs(p.displacement || 5) * 50;
+            return 80;
+          },
+          pointRadiusMinPixels: 2,
+          pointRadiusMaxPixels: 18,
+          transitions: { getFillColor: 400, getElevation: 400, getPointRadius: 400 },
+        })
+      ] : []),
 
       // ── USGS live earthquake scatter dots ───────────────────
       new ScatterplotLayer<USGSEarthquake>({
@@ -355,7 +359,7 @@ export default function MapComponent() {
       }),
 
       // ── Active node threat rings ─────────────────────────────
-      ...(activeNode ? Array.from({ length: 4 }).map((_, i) => {
+      ...(activeNode && seismicAlert.includes(activeNode.id) ? Array.from({ length: 4 }).map((_, i) => {
         const t = i / 3;
         return new ScatterplotLayer({
           id: `threat-ring-${i}`,
@@ -374,7 +378,7 @@ export default function MapComponent() {
       }) : []),
 
       // ── Active node epicentre dot ────────────────────────────
-      ...(activeNode ? [
+      ...(activeNode && seismicAlert.includes(activeNode.id) ? [
         new ScatterplotLayer({
           id: 'epicenter-dot',
           data: [{ position: activeNode.coords }],
@@ -654,7 +658,8 @@ export default function MapComponent() {
           const pulseColor = STATUS_PULSE[node.status] ?? '#4ade80';
           const isSeismic  = seismicAlert.includes(node.id);
 
-          if (!isSeismic && !isActive) return null;
+          // Only show TARGET_NODE markers when there is an active seismic alert on that node
+          if (!isSeismic) return null;
 
           return (
             <Marker
@@ -935,42 +940,7 @@ export default function MapComponent() {
         )}
       </div>
 
-      {/* ── HUD: North Arrow ────────────────────────────────────── */}
 
-      <div
-        className="absolute pointer-events-none"
-        style={{ left: 20, bottom: 60, zIndex: 30 }}
-      >
-        <div
-          style={{
-            background: 'rgba(9,9,11,0.82)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            padding: '8px 10px',
-            backdropFilter: 'blur(12px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ position: 'relative', width: 24, height: 24 }}>
-            <div style={{
-              width: 0, height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderBottom: '12px solid rgba(255,255,255,0.85)',
-              position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
-            }} />
-            <div style={{
-              width: 0, height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '12px solid rgba(255,255,255,0.22)',
-              position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-            }} />
-          </div>
-          <span className="font-mono mt-1" style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.2em' }}>N</span>
-        </div>
-      </div>
 
       {/* ── HUD: Category Legend ────────────────────────────────── */}
       <div

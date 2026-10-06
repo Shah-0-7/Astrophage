@@ -269,7 +269,7 @@ export default function TopoCore3D() {
   return (
     <div className="flex h-full">
       {/* ── Left: instrument control panel ──────────────────── */}
-      <div className="w-[200px] flex-shrink-0 glass-sidebar border-r border-white/10 flex flex-col overflow-y-auto">
+      <div className="hidden md:flex w-[200px] flex-shrink-0 glass-sidebar border-r border-white/10 flex-col overflow-y-auto">
 
         {/* Instrument status */}
         <div className="p-3 border-b border-white/10">
@@ -492,7 +492,7 @@ export default function TopoCore3D() {
       </div>
 
       {/* ── Right: point probe telemetry + camera viewport ──── */}
-      <div className="w-[220px] flex-shrink-0 border-l border-white/10 glass-sidebar flex flex-col">
+      <div className="hidden md:flex w-[220px] flex-shrink-0 border-l border-white/10 glass-sidebar flex-col">
 
         {/* Point probe panel */}
         <div className="border-b border-white/10">

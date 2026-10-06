@@ -173,27 +173,6 @@ function rng() {
   return x - Math.floor(x);
 }
 
-/* ── Generate 18 × 12-day pass epochs ──────────────────────── */
-function generatePassEpochs(): PassEpoch[] {
-  const baseDate = new Date('2024-10-15T00:00:00Z');
-  const epochs: PassEpoch[] = [];
-  let cumDisp = 0;
-  for (let i = 0; i < 18; i++) {
-    const passDate = new Date(baseDate.getTime() + i * 12 * 24 * 60 * 60 * 1000);
-    const delta = -(1.8 + rng() * 1.4);        // mm per pass
-    cumDisp += delta;
-    epochs.push({
-      index: i + 1,
-      label: `PASS ${String(i + 1).padStart(2, '0')}`,
-      date: passDate.toISOString(),
-      accumDisplacement: parseFloat(cumDisp.toFixed(1)),
-      residualError: parseFloat((0.8 + rng() * 1.2).toFixed(1)),
-    });
-  }
-  return epochs;
-}
-
-export const PASS_EPOCHS: PassEpoch[] = generatePassEpochs();
 
 /* ── Spatial bounding boxes for jumpToNodeView ──────────────── */
 export const NODE_BOUNDING_BOXES: Record<string, {
@@ -450,3 +429,47 @@ export function getAllDataPoints(): NISARDataPoint[] {
   }
   return points;
 }
+
+/* -- Generate 2020-2025 pass epochs from scenario data -------- */
+function generatePassEpochs(): PassEpoch[] {
+  const allPoints = getAllDataPoints();
+  const timestampSet = new Set<string>();
+  const dateEvents: Record<string, Set<string>> = {};
+
+  // Gather unique timestamps and their associated categories
+  for (const p of allPoints) {
+    timestampSet.add(p.timestamp);
+    if (!dateEvents[p.timestamp]) dateEvents[p.timestamp] = new Set();
+    dateEvents[p.timestamp].add(p.category);
+  }
+
+  // Ensure we at least have monthly from 2020 if sparse
+  const baseDate = new Date('2020-01-01T00:00:00Z');
+  for (let i = 0; i < 72; i++) {
+    const d = new Date(baseDate.getTime());
+    d.setMonth(d.getMonth() + i);
+    timestampSet.add(d.toISOString());
+  }
+
+  const sortedDates = Array.from(timestampSet).sort();
+  const epochs: PassEpoch[] = [];
+  let cumDisp = 0;
+
+  for (let i = 0; i < sortedDates.length; i++) {
+    const ts = sortedDates[i];
+    const delta = -(1.8 + rng() * 1.4);
+    cumDisp += delta;
+    
+    epochs.push({
+      index: i + 1,
+      label: `EPOCH ${String(i + 1).padStart(2, '0')}`,
+      date: ts,
+      accumDisplacement: parseFloat(cumDisp.toFixed(1)),
+      residualError: parseFloat((0.8 + rng() * 1.2).toFixed(1)),
+      events: dateEvents[ts] ? Array.from(dateEvents[ts]) : [],
+    });
+  }
+  return epochs;
+}
+
+export const PASS_EPOCHS: PassEpoch[] = generatePassEpochs();

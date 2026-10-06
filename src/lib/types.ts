@@ -60,6 +60,7 @@ export interface PassEpoch {
   date: string;      // ISO-8601
   accumDisplacement: number;   // mm cumulative from P01
   residualError: number;       // ±mm
+  events?: string[];
 }
 
 /* ── Point-probe telemetry result ───────────────────────────── */
