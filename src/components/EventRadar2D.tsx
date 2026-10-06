@@ -56,6 +56,11 @@ export default function EventRadar2D() {
   const stream = useSSEStream();
   const selectedGlobalEvent = useStore(s => s.selectedGlobalEvent);
   const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
+  const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
+
+  const EVENT_SYMBOLS: Record<string, string> = {
+    seismic: '▲', cryosphere: '◆', volcanism: '⬡', tsunami: '🌊',
+  };
 
   const globalEvents = useMemo(() => {
     const all = [
@@ -263,8 +268,14 @@ export default function EventRadar2D() {
           <>
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="status-dot" style={{ background: 'var(--crimson)' }} />
-                <span className="panel-label text-white uppercase">{selectedGlobalEvent.source} EVENT</span>
+                <span style={{ color: 'var(--crimson)', fontSize: '14px' }}>{EVENT_SYMBOLS[selectedGlobalEvent.source] || '●'}</span>
+                <span className="panel-label text-white uppercase">
+                  {selectedGlobalEvent.source} - {
+                    selectedGlobalEvent.source === 'seismic' ? 'Earthquake' :
+                    selectedGlobalEvent.source === 'volcanism' ? 'Volcano' :
+                    selectedGlobalEvent.source === 'tsunami' ? 'Tsunami' : 'Alert'
+                  }
+                </span>
               </div>
               <button onClick={() => setSelectedGlobalEvent(null)} className="text-white/50 hover:text-white">✕</button>
             </div>
@@ -428,6 +439,21 @@ export default function EventRadar2D() {
                   setSelectedGlobalEvent(evt);
                   const coords = evt.geometry.type === 'Point' ? (evt.geometry as any).coordinates : null;
                   if (coords) setFlyToCoords([coords[0], coords[1]]);
+                  
+                  const evtTime = new Date(
+                    evt.source === 'seismic' ? (evt.properties as any).event_time :
+                    evt.source === 'volcanism' ? (evt.properties as any).last_eruption :
+                    evt.source === 'tsunami' ? (evt.properties as any).issued_at :
+                    (evt.properties as any).date || Date.now()
+                  ).getTime();
+                  
+                  let closestIdx = 0;
+                  let minDiff = Infinity;
+                  PASS_EPOCHS.forEach((pass, idx) => {
+                    const diff = Math.abs(new Date(pass.date).getTime() - evtTime);
+                    if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
+                  });
+                  setCurrentPassIndex(closestIdx);
                 }}
                 className="cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border border-white/5 bg-black/20"
               >

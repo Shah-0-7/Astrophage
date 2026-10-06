@@ -11,7 +11,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Map as MapLibreMap, Marker, useControl } from 'react-map-gl/maplibre';
+import { Map as MapLibreMap, Marker, useControl, NavigationControl } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { MapboxOverlayProps } from '@deck.gl/mapbox';
@@ -112,6 +112,7 @@ export default function MapComponent() {
   const currentPassIndex   = useStore(s => s.currentPassIndex);
   const flyToCoords        = useStore(s => s.flyToCoords);
   const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
+  const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
   const { activeScenario, filteredFeatures } = useNISARData();
 
   // Dynamic minZoom based on container size
@@ -337,6 +338,17 @@ export default function MapComponent() {
               properties: { magnitude: object.magnitude, place: object.place, event_time: object.time, depth_km: object.coords[2] }
             };
             setSelectedGlobalEvent(feature as any);
+            
+            const evtTime = new Date(object.time).getTime();
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            import('@/lib/mockData').then(({ PASS_EPOCHS }) => {
+              PASS_EPOCHS.forEach((pass, idx) => {
+                const diff = Math.abs(new Date(pass.date).getTime() - evtTime);
+                if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
+              });
+              setCurrentPassIndex(closestIdx);
+            });
           }
         },
         updateTriggers: { getRadius: earthquakes.length, getFillColor: earthquakes.length },
@@ -629,6 +641,7 @@ export default function MapComponent() {
         maxZoom={18}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
       >
+        <NavigationControl position="top-right" visualizePitch={true} />
         {/* DeckGL layers injected into MapLibre’s WebGL context — guaranteed in-sync */}
         <DeckGLOverlay
           layers={layers}
