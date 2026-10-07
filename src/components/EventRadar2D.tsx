@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ============================================================
  * EventRadar2D – View Mode: EVENT_RADAR_2D
  * ============================================================
@@ -85,7 +85,7 @@ export default function EventRadar2D() {
   /** calculateBackscatterRatio: return dB value for active polarisation */
   const backscatterDb = BACKSCATTER_VALUES[activePolarisation];
 
-  const [eventsExpanded, setEventsExpanded] = useState(false);
+  const [eventsExpanded, setEventsExpanded] = useState(true);
 
 
   const EVT_COLOR: Record<string, string> = {
@@ -211,32 +211,31 @@ export default function EventRadar2D() {
         </div>
       </div>
 
-      {/* -- Main content row (sidebars + map) -- */}
-      <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Location strip – only shown when a global event is selected */}
-        {selectedGlobalEvent && (
-          <div
-            className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-3"
-            style={{ height: 36, background: 'rgba(9,9,11,0.90)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}
-          >
-            <span className="font-mono text-[9px] text-white/40 tracking-wider">⊕ LOCATION</span>
-            <span className="font-mono text-[11px] text-white/80">
-              {(selectedGlobalEvent.properties as any).place ||
-               (selectedGlobalEvent.properties as any).name ||
-               (selectedGlobalEvent.properties as any).title ||
-               'Global Event'}
-            </span>
-            {selectedGlobalEvent.geometry.type === 'Point' && (
-              <span className="font-mono text-[9px] text-white/35 ml-auto">
-                {((selectedGlobalEvent.geometry as any).coordinates[1] as number).toFixed(3)}°&nbsp;
-                {((selectedGlobalEvent.geometry as any).coordinates[0] as number).toFixed(3)}°
+      {/* -- Main content column (map + mobile pills) -- */}
+      <div className="flex flex-1 flex-col overflow-hidden" style={{ minHeight: 0 }}>
+        {/* Map canvas -- fill available space */}
+        <div className="relative flex-1">
+          {/* Location strip – only shown when a global event is selected */}
+          {selectedGlobalEvent && (
+            <div
+              className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-3"
+              style={{ height: 36, background: 'rgba(9,9,11,0.90)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}
+            >
+              <span className="font-mono text-[9px] text-white/40 tracking-wider">⊕ LOCATION</span>
+              <span className="font-mono text-[11px] text-white/80">
+                {(selectedGlobalEvent.properties as any).place ||
+                 (selectedGlobalEvent.properties as any).name ||
+                 (selectedGlobalEvent.properties as any).title ||
+                 'Global Event'}
               </span>
-            )}
-          </div>
-        )}
-
-        {/* Map canvas -- rectangular on mobile, fill on desktop */}
-        <div className="relative flex-shrink-0 md:flex-1" style={{ height: "clamp(190px,52vw,300px)" }}>
+              {selectedGlobalEvent.geometry.type === 'Point' && (
+                <span className="font-mono text-[9px] text-white/35 ml-auto">
+                  {((selectedGlobalEvent.geometry as any).coordinates[1] as number).toFixed(3)}°&nbsp;
+                  {((selectedGlobalEvent.geometry as any).coordinates[0] as number).toFixed(3)}°
+                </span>
+              )}
+            </div>
+          )}
           <div className="absolute inset-0"><MapComponent /></div>
         </div>
 
@@ -461,7 +460,7 @@ export default function EventRadar2D() {
                     <p className="font-mono text-[9px] text-white/30 text-center py-4">NO LIVE EVENTS</p>
                   ) : globalEvents.map(evt => (
                     <div key={evt.id} onClick={() => handleEventClick(evt)}
-                      className="cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border border-white/5 bg-black/20"
+                      className={`cursor-pointer hover:bg-white/10 p-2 rounded transition-colors border bg-black/20 ${selectedGlobalEvent?.id === evt.id ? 'border-[var(--crimson)]' : 'border-white/5'}`}
                     >
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-mono text-[11px] font-bold" style={{ color: EVT_COLOR[evt.source] ?? "var(--crimson)" }}>
