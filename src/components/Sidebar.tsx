@@ -206,13 +206,21 @@ export default function Sidebar() {
           </div>
 
           {/* ── Footer: NASA / ISRO branding ─────────────── */}
-          <div className="p-4 border-t border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-md">
-            <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-[0.2em] uppercase">
-              NASA-ISRO SAR Mission
-            </span>
-            <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-[0.2em] uppercase">
-              NISAR L+S Band
-            </span>
+          <div className="p-4 border-t border-white/10 flex flex-col gap-1 bg-black/40 backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-[0.2em] uppercase">
+                NASA-ISRO SAR Mission
+              </span>
+              <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-[0.2em] uppercase">
+                NISAR L+S Band
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1 h-1 rounded-full bg-yellow-400/70" />
+              <span className="text-[8px] font-mono tracking-widest uppercase" style={{ color: 'rgba(250,204,21,0.55)' }}>
+                SAR Scenario: Synthetic Demonstration
+              </span>
+            </div>
           </div>
         </motion.aside>
       )}

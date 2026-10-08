@@ -2,8 +2,9 @@
  * ============================================================
  * TelemetryHeader – Persistent Top Status Bar
  * ============================================================
- * Displays real-time satellite parameters, UTC timestamp,
- * and payload health.  Persists across all three view modes.
+ * Displays real-time satellite parameters from CelesTrak,
+ * UTC timestamp, and payload health.
+ * Persists across all view modes.
  * ============================================================
  */
 
@@ -30,15 +31,41 @@ function useUTCClock() {
   return utc;
 }
 
-const { altitude, inclination, swath, downlink, podStatus } = SATELLITE_TELEMETRY;
+interface OrbitData {
+  altitudeKm: number;
+  inclination: number;
+  velocityKms: number;
+  periodMin: number;
+  epoch: string;
+}
+
+function useOrbitData() {
+  const [orbit, setOrbit] = useState<OrbitData | null>(null);
+  useEffect(() => {
+    fetch('/api/orbit')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d && d.altitudeKm) setOrbit(d as OrbitData);
+      })
+      .catch(() => {/* silently fall back to static values */});
+  }, []);
+  return orbit;
+}
+
+const { swath, downlink, podStatus } = SATELLITE_TELEMETRY;
 
 export default function TelemetryHeader() {
-  const viewMode = useStore(s => s.viewMode);
+  const viewMode    = useStore(s => s.viewMode);
   const setViewMode = useStore(s => s.setViewMode);
-  const activeNodeId = useStore(s => s.activeNodeId);
   const lBandStatus = useStore(s => s.lBandStatus);
   const sBandStatus = useStore(s => s.sBandStatus);
-  const utc = useUTCClock();
+  const utc         = useUTCClock();
+  const orbit       = useOrbitData();
+
+  // Use live CelesTrak data if available, fall back to static mock values
+  const altitude    = orbit ? Math.round(orbit.altitudeKm)      : SATELLITE_TELEMETRY.altitude;
+  const inclination = orbit ? orbit.inclination.toFixed(1)       : SATELLITE_TELEMETRY.inclination.toFixed(1);
+  const isLive      = orbit !== null;
 
   const statusColor = podStatus === 'NOMINAL' ? 'var(--nominal)'
     : podStatus === 'DEGRADED' ? 'var(--acquiring)' : 'var(--crimson)';
@@ -61,11 +88,11 @@ export default function TelemetryHeader() {
           </div>
         </div>
 
-        {/* ── Tri-mode nav tabs ──────────────────────────────── */}
+        {/* ── Nav tabs ─────────────────────────────────────────── */}
         <div className="flex items-center h-full ml-2">
           {([
-            { id: 'EVENT_RADAR_2D',   icon: '⊕', label: '2D RADAR' },
-            { id: 'TOPO_CORE_3D',     icon: '△', label: '3D TOPO' },
+            { id: 'EVENT_RADAR_2D', icon: '⊕', label: '2D RADAR' },
+            { id: 'TOPO_CORE_3D',   icon: '△', label: '3D TOPO'  },
           ] as const).map(tab => (
             <button
               key={tab.id}
@@ -79,7 +106,7 @@ export default function TelemetryHeader() {
           ))}
         </div>
 
-        {/* ── Satellite parameter chips ─────────────────────── */}
+        {/* ── Satellite parameter chips ─────────────────────────── */}
         <div className="hidden md:flex items-center flex-1 justify-center gap-0">
           <span className="telem-chip">
             <span>ALT:</span><span className="value">{altitude} KM</span>
@@ -101,12 +128,21 @@ export default function TelemetryHeader() {
             />
             <span style={{ color: 'var(--nominal)' }}>ACTIVE</span>
           </span>
+          {/* CelesTrak live badge – only shown when live data arrives */}
+          {isLive && (
+            <span className="telem-chip" style={{ color: 'var(--nominal)', fontSize: 9 }}>
+              <span
+                className="status-dot mr-1"
+                style={{ background: 'var(--nominal)', boxShadow: '0 0 5px var(--nominal)' }}
+              />
+              CELESTRAK LIVE
+            </span>
+          )}
         </div>
         {/* Spacer pushes UTC/POD right on mobile */}
         <div className="flex-1 md:hidden" />
 
-
-        {/* ── UTC timestamp ─────────────────────────────────── */}
+        {/* ── UTC timestamp ─────────────────────────────────────── */}
         <div className="hidden sm:block px-4 border-l border-white/10 border-r border-white/10">
           <p className="font-mono text-[10px] font-500 tracking-widest text-white/50 leading-none text-right">SYS.CLOCK</p>
           <motion.p
@@ -119,7 +155,7 @@ export default function TelemetryHeader() {
           </motion.p>
         </div>
 
-        {/* ── POD health indicator ──────────────────────────── */}
+        {/* ── POD health indicator ───────────────────────────────── */}
         <div className="flex items-center gap-2 pl-4">
           <span
             className="status-dot"
