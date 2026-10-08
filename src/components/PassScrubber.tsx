@@ -129,7 +129,7 @@ export default function PassScrubber() {
         {/* Epoch label */}
         <div className="flex items-center gap-3 ml-2">
           <div>
-            <span className="panel-label">EPOCH:</span>
+            <span className="panel-label">SAR EPOCH:</span>
             <motion.span
               key={epochDate}
               initial={{ opacity: 0, y: -4 }}
@@ -139,6 +139,9 @@ export default function PassScrubber() {
               {epochDate} [{currentPass?.label ?? '—'}]
             </motion.span>
           </div>
+          <span className="hidden md:inline font-mono text-[8px] tracking-wider px-2 py-0.5 rounded border border-white/10 text-emerald-400 bg-emerald-500/10">
+            NISAR 12-DAY REPEAT CYCLE
+          </span>
         </div>
 
         {/* Spacer */}

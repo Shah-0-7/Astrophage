@@ -435,10 +435,11 @@ export default function EventRadar2D() {
             style={{ background: "transparent", border: "none", cursor: "pointer" }}
           >
             <div className="flex items-center gap-2">
-              <span className="panel-label text-white">GLOBAL EVENTS</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" style={{ boxShadow: '0 0 6px #34d399' }} />
+              <span className="panel-label text-white">LIVE HAZARD FEED</span>
               {globalEvents.length > 0 && (
                 <span className="font-mono text-[8px] px-1.5 py-0.5" style={{ background: "rgba(239,68,68,0.18)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 2 }}>
-                  {globalEvents.length}
+                  {globalEvents.length} REAL-TIME
                 </span>
               )}
             </div>
@@ -456,6 +457,9 @@ export default function EventRadar2D() {
                 style={{ overflow: "hidden" }}
               >
                 <div className="overflow-y-auto p-3 pt-1 space-y-1.5" style={{ maxHeight: 260 }}>
+                  <p className="font-mono text-[8px] text-white/40 pb-1 border-b border-white/5">
+                    ● Real-time USGS & Smithsonian feed (past 30 days)
+                  </p>
                   {globalEvents.length === 0 ? (
                     <p className="font-mono text-[9px] text-white/30 text-center py-4">NO LIVE EVENTS</p>
                   ) : globalEvents.map(evt => (
