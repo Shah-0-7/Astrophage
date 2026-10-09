@@ -967,8 +967,6 @@ export default function MapComponent() {
               { key: 'temporalDecay',    label: 'EPOCH DECAY RINGS',  color: '#facc15' },
               { key: 'volcanismAlerts',  label: 'VOLCANISM',          color: '#f97316' },
               { key: 'tsunamiZones',     label: 'TSUNAMI ZONES',      color: '#60a5fa' },
-              { key: 'gnssStations',     label: 'GNSS STATIONS',      color: '#4ade80' },
-              { key: 'sentinelSwaths',   label: 'SENTINEL SWATHS',    color: '#a78bfa' },
               { key: 'cryosphereExtent', label: 'CRYOSPHERE',         color: '#7dd3fc' },
             ] as { key: keyof MapLayerConfig; label: string; color: string }[]).map(({ key, label, color }) => (
               <button

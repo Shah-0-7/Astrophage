@@ -230,8 +230,6 @@ export default function TopoCore3D() {
   const setCameraViewport = useStore(s => s.setCameraViewport);
   const pointProbe = useStore(s => s.pointProbe);
   const setPointProbe = useStore(s => s.setPointProbe);
-  const isInverseRunning = useStore(s => s.isInverseRunning);
-  const executeInverseDisplacement = useStore(s => s.executeInverseDisplacement);
   const lBandStatus = useStore(s => s.lBandStatus);
   const sBandStatus = useStore(s => s.sBandStatus);
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
@@ -470,24 +468,14 @@ export default function TopoCore3D() {
           </div>
         </div>
 
-        {/* Execute inverse displacement */}
-        <div className="border-t border-white/10 px-4 py-3 flex-shrink-0"
+        {/* 3D Model Telemetry footer */}
+        <div className="border-t border-white/10 px-4 py-2.5 flex-shrink-0 flex items-center justify-between"
              style={{ background: 'rgba(9,9,11,0.92)' }}>
-          <button
-            onClick={executeInverseDisplacement}
-            disabled={isInverseRunning}
-            className="w-full tac-btn justify-center h-10 text-[11px]"
-            style={isInverseRunning ? { borderColor: 'var(--acquiring)', color: 'var(--acquiring)' } : {}}
-          >
-            {isInverseRunning ? (
-              <>
-                <div className="w-3 h-3 border border-acquiring border-t-transparent rounded-full spin" />
-                COMPUTING INVERSION...
-              </>
-            ) : (
-              '⌬ EXECUTE INVERSE DISPLACEMENT'
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-mono text-[9px] text-white/70 tracking-wider">3D TOPOGRAPHIC STRAIN VISUALIZER</span>
+          </div>
+          <span className="font-mono text-[9px] text-white/40">Z-EXAGGERATION: {zAxisExaggeration.toFixed(1)}×</span>
         </div>
       </div>
 

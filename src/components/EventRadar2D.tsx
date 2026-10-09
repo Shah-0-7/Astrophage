@@ -43,8 +43,6 @@ export default function EventRadar2D() {
   const setPhaseFilterMode = useStore(s => s.setPhaseFilterMode);
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
   const setCoherenceThreshold = useStore(s => s.setCoherenceThreshold);
-  const activePolarisation = useStore(s => s.activePolarisation);
-  const setActivePolarisation = useStore(s => s.setActivePolarisation);
   const currentPassIndex = useStore(s => s.currentPassIndex);
   const lBandStatus = useStore(s => s.lBandStatus);
   const sBandStatus = useStore(s => s.sBandStatus);
@@ -81,9 +79,6 @@ export default function EventRadar2D() {
     });
     return all.slice(0, 10);
   }, [stream]);
-
-  /** calculateBackscatterRatio: return dB value for active polarisation */
-  const backscatterDb = BACKSCATTER_VALUES[activePolarisation];
 
   const [eventsExpanded, setEventsExpanded] = useState(true);
 
@@ -180,23 +175,22 @@ export default function EventRadar2D() {
           ))}
         </div>
 
-        {/* Polarisation / backscatter */}
+        {/* Radar channel specs */}
         <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">BACKSCATTER</p>
-          <div className="grid grid-cols-2 gap-1 mb-2">
-            {POL_OPTIONS.map(pol => (
-              <button
-                key={pol}
-                onClick={() => setActivePolarisation(pol)}
-                className={`tac-btn text-[9px] py-1 h-auto ${activePolarisation === pol ? 'active' : ''}`}
-              >
-                {pol}
-              </button>
-            ))}
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="panel-label">RETURN</span>
-            <span className="font-mono text-[12px] text-white font-700">{backscatterDb.toFixed(1)} dB</span>
+          <p className="panel-label mb-2">RADAR CHANNEL SPECS</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="panel-label">POLARIMETRY</span>
+              <span className="font-mono text-[10px] text-emerald-400 font-600">QUAD-POL (HH+HV)</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="panel-label">WAVELENGTH</span>
+              <span className="font-mono text-[10px] text-white font-600">L-BAND 24.0 cm λ</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="panel-label">SWATH WIDTH</span>
+              <span className="font-mono text-[10px] text-white/70 font-600">242 KM (SWEEP-SAR)</span>
+            </div>
           </div>
         </div>
 
