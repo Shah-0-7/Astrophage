@@ -107,7 +107,7 @@ interface StoreState {
 }
 
 const defaultScenario = ALL_SCENARIOS[0];
-const defaultPass = PASS_EPOCHS[17]; // Start at PASS 18 (most recent)
+const defaultPass = PASS_EPOCHS[0]; // Start at PASS 01 (oldest)
 
 export const useStore = create<StoreState>((set, get) => ({
   /* ── Navigation ─────────────────────────────────────────── */
@@ -142,7 +142,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set(s => ({ spatialContext: { ...s.spatialContext, ...ctx } })),
 
   /* ── Temporal ───────────────────────────────────────────── */
-  currentPassIndex: 17,               // PASS 18
+  currentPassIndex: 0,               // PASS 01
   setCurrentPassIndex: (idx) => {
     const pass = PASS_EPOCHS[idx];
     if (pass) {
@@ -158,7 +158,7 @@ export const useStore = create<StoreState>((set, get) => ({
   playbackSpeed: 1,
   setPlaybackSpeed: (speed) => set({ playbackSpeed: speed }),
 
-  currentTimestamp: defaultScenario.timeRange.end,
+  currentTimestamp: defaultScenario.timeRange.start,
   setCurrentTimestamp: (ts) => set({ currentTimestamp: ts }),
 
   /* ── Target category filter ─────────────────────────────── */

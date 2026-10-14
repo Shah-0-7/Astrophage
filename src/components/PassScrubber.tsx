@@ -174,6 +174,34 @@ export default function PassScrubber() {
 
       {/* ── Pass scrubber slider ──────────────────────────────── */}
       <div className="relative">
+        {/* Mobile events track (hidden on sm+) */}
+        <div className="sm:hidden relative h-5 mb-2">
+          {PASS_EPOCHS.map((pass, idx) => {
+            const hasEvents = pass.events && pass.events.length > 0;
+            if (!hasEvents) return null;
+            const left = TOTAL_PASSES > 1 ? (idx / (TOTAL_PASSES - 1)) * 100 : 0;
+            return (
+              <div
+                key={`mobile-event-${pass.label}`}
+                className="absolute flex flex-col items-center"
+                style={{
+                  left: `${left}%`,
+                  transform: 'translateX(-50%)',
+                  bottom: 0,
+                  zIndex: 10,
+                }}
+              >
+                <div
+                  className="w-[1px] bg-[#ef4444]"
+                  style={{ height: 6, boxShadow: '0 0 6px var(--crimson)' }}
+                />
+                <span style={{ color: '#ef4444', fontSize: 7, marginTop: 2, letterSpacing: '0.5px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                  {pass.events?.join('/').toUpperCase()}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         <input
           type="range"
           min={0}

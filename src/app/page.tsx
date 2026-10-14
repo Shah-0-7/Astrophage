@@ -31,6 +31,11 @@ const TopoCore3D = dynamic(() => import('@/components/TopoCore3D'), {
   loading: () => <ViewLoader label="INITIALIZING MORPHOMETRIC ENGINE..." />,
 });
 
+const GlobalSchematicGlobe = dynamic(() => import('@/components/GlobalSchematicGlobe'), {
+  ssr: false,
+  loading: () => <ViewLoader label="INITIALIZING GLOBAL SCHEMATIC..." />,
+});
+
 function ViewLoader({ label }: { label: string }) {
   return (
     <div className="flex-1 flex items-center justify-center" style={{ background: '#09090b' }}>
@@ -61,6 +66,7 @@ function ViewRouter() {
       {/* View panels */}
       {viewMode === 'EVENT_RADAR_2D'   && <EventRadar2D />}
       {viewMode === 'TOPO_CORE_3D'     && <TopoCore3D />}
+      {viewMode === 'GLOBAL_SCHEMATIC' && <GlobalSchematicGlobe />}
     </div>
   );
 }

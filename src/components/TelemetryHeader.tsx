@@ -91,8 +91,9 @@ export default function TelemetryHeader() {
         {/* ── Nav tabs ─────────────────────────────────────────── */}
         <div className="flex items-center h-full ml-2">
           {([
-            { id: 'EVENT_RADAR_2D', icon: '⊕', label: '2D RADAR' },
-            { id: 'TOPO_CORE_3D',   icon: '△', label: '3D TOPO'  },
+            { id: 'GLOBAL_SCHEMATIC', icon: '🌐', label: 'GLOBAL SCHEMATIC' },
+            { id: 'EVENT_RADAR_2D',   icon: '⊕', label: '2D RADAR' },
+            { id: 'TOPO_CORE_3D',     icon: '△', label: '3D TOPO' },
           ] as const).map(tab => (
             <button
               key={tab.id}
