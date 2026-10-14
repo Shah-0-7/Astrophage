@@ -38,11 +38,11 @@ const GlobalSchematicGlobe = dynamic(() => import('@/components/GlobalSchematicG
 
 function ViewLoader({ label }: { label: string }) {
   return (
-    <div className="flex-1 flex items-center justify-center" style={{ background: '#09090b' }}>
+    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
       <div className="flex flex-col items-center gap-4">
         <div
           className="w-8 h-8 rounded-full border-2 border-t-transparent spin"
-          style={{ borderColor: 'rgba(255,255,255,0.2)', borderTopColor: 'var(--crimson)' }}
+          style={{ borderColor: 'var(--border-zinc)', borderTopColor: 'var(--crimson)' }}
         />
         <p className="font-mono text-[10px] tracking-[0.2em] uppercase"
            style={{ color: 'var(--text-muted)' }}>

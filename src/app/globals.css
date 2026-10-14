@@ -10,19 +10,47 @@
  * Google Fonts loaded via <link> in layout.tsx.
  * ============================================================ */
 
-/* ── CSS Custom Properties ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+ * NISAR Design System Tokens
+ * dark  = mission-control default (unchanged from original)
+ * light = [data-theme="light"] overrides
+ * ══════════════════════════════════════════════════════════════ */
+
+/* ── CSS Custom Properties (DARK theme – default) ────────────── */
 :root {
-  /* ── Core aerospace palette ──────────────────────────────── */
+  color-scheme: dark;
+
+  /* ── Core background layers ─────────────────────────────────── */
   --bg-primary:    #09090b;          /* deepest zinc */
   --bg-secondary:  #18181b;          /* panel zinc */
   --bg-tertiary:   #27272a;          /* element zinc */
   --bg-glass:      rgba(9, 9, 11, 0.82);
   --bg-glass-light: rgba(24, 24, 27, 0.72);
+  --bg-header:     rgba(9, 9, 11, 0.96);
+  --bg-drawer:     rgba(9, 9, 11, 0.96);
+  --bg-sidebar:    rgba(9, 9, 11, 0.88);
+  --bg-overlay:    rgba(0, 0, 0, 0.60);
 
-  /* ── Telemetry colours ───────────────────────────────────── */
-  --crimson:       #ef4444;          /* radar crimson – critical / lock */
+  /* ── Telemetry accent ────────────────────────────────────────── */
+  --crimson:       #ef4444;
   --crimson-dim:   rgba(239, 68, 68, 0.18);
   --crimson-glow:  rgba(239, 68, 68, 0.35);
+
+  /* ── Active / accent token (replaces hard-wired crimson in UI) */
+  --accent:        var(--crimson);          /* active tab, focus ring, selected */
+  --accent-dim:    var(--crimson-dim);
+  --accent-glow:   var(--crimson-glow);
+  --accent-text:   var(--crimson);          /* small accent text – must be on bg */
+  --accent-on:     #ffffff;                 /* text on accent fill */
+  --nav-active-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+  --nav-active-bar:    var(--crimson);
+
+  /* ── Surface colours (white-alpha on dark) ───────────────────── */
+  --surface-1:     rgba(255, 255, 255, 0.10);   /* hover, tac-btn active */
+  --surface-2:     rgba(255, 255, 255, 0.05);   /* tac-btn hover */
+  --surface-3:     rgba(255, 255, 255, 0.06);   /* badge bg */
+
+  /* ── White alpha helpers (kept for backwards compat) ─────────── */
   --white:         #ffffff;
   --white-90:      rgba(255, 255, 255, 0.90);
   --white-60:      rgba(255, 255, 255, 0.60);
@@ -30,68 +58,241 @@
   --white-10:      rgba(255, 255, 255, 0.10);
   --white-06:      rgba(255, 255, 255, 0.06);
 
-  /* ── Status colours ──────────────────────────────────────── */
-  --nominal:   #4ade80;     /* green – all clear */
-  --acquiring: #facc15;     /* amber – in progress */
-  --standby:   #94a3b8;     /* slate – idle */
+  /* ── Status colours (legible on dark AND light) ──────────────── */
+  --nominal:   #4ade80;
+  --acquiring: #facc15;
+  --standby:   #94a3b8;
   --error:     var(--crimson);
 
-  /* ── Legacy accent aliases (kept for DataChart/Sidebar) ───── */
+  /* ── Event type colours – dark mode ─────────────────────────── */
+  --type-tectonic:           #ef4444;
+  --type-volcanic:           #fb923c;
+  --type-landslide:          #a78bfa;
+  --type-cryosphere:         #60a5fa;
+  --type-subsidence:         #34d399;
+  --type-mining:             #fbbf24;
+  --type-induced-seismicity: #f472b6;
+  --type-tsunami:            #22d3ee;
+
+  /* ── Legacy accent aliases ───────────────────────────────────── */
   --accent-cyan:    #00e5ff;
   --accent-magenta: #e040fb;
   --accent-amber:   #ffab00;
   --accent-emerald: #4ade80;
   --accent-coral:   #ef4444;
 
-  /* ── Category colours (tactical override) ────────────────── */
+  /* ── Category colours ───────────────────────────────────────── */
   --color-glacier:    #60a5fa;
   --color-earthquake: var(--crimson);
   --color-agriculture:#4ade80;
   --color-wildfire:   #fb923c;
 
-  /* ── Text ────────────────────────────────────────────────── */
+  /* ── Text ────────────────────────────────────────────────────── */
   --text-primary:   #ffffff;
   --text-secondary: #a1a1aa;
-  --text-muted:     #52525b;
+  --text-muted:     #71717a;
 
-  /* ── Borders ─────────────────────────────────────────────── */
+  /* ── Borders ─────────────────────────────────────────────────── */
   --border-glass:  rgba(255, 255, 255, 0.08);
   --border-zinc:   rgba(255, 255, 255, 0.12);
   --border-crimson:rgba(239, 68, 68, 0.40);
+  --border-accent: var(--border-crimson);
 
-  /* ── Shadows ─────────────────────────────────────────────── */
+  /* ── Shadows ─────────────────────────────────────────────────── */
   --shadow-glow-crimson: 0 0 20px rgba(239, 68, 68, 0.20);
+  --shadow-glow-accent:  0 0 20px rgba(239, 68, 68, 0.20);
   --shadow-glow-white:   0 0 12px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 8px 40px rgba(0, 0, 0, 0.70);
   --shadow-glow-cyan: 0 0 20px rgba(0, 229, 255, 0.15);
 
-  /* ── Typography ──────────────────────────────────────────── */
+  /* ── Shimmer gradient (dark) ─────────────────────────────────── */
+  --shimmer-from: rgba(255, 255, 255, 0.06);
+  --shimmer-via:  rgba(255, 255, 255, 0.10);
+  --shimmer-to:   rgba(255, 255, 255, 0.06);
+
+  /* ── Slider fill ─────────────────────────────────────────────── */
+  --slider-fill:  rgba(255, 255, 255, 0.10);
+  --slider-thumb: var(--white);
+  --slider-thumb-glow: rgba(255, 255, 255, 0.5);
+
+  /* ── Globe / 3D ─────────────────────────────────────────────── */
+  --globe-bg:     #09090b;
+  --globe-wires-sphere: #081828;
+  --globe-wires-emissive: #0d2d4a;
+  --globe-graticule-main: #22d3ee;
+  --globe-graticule-sub:  #083d52;
+  --globe-fault-lines:    #ef4444;
+  --globe-atmo-wires:     #0a2540;
+  --globe-atmo-standard:  #1a6fff;
+  --topo-terrain:         #18181b;
+  --topo-wireframe:       #ffffff;
+  --topo-bg:              #09090b;
+
+  /* ── Typography ─────────────────────────────────────────────── */
   --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:  'Roboto Mono', 'Courier New', monospace;
 
-  /* ── Transitions ─────────────────────────────────────────── */
+  /* ── Transitions ─────────────────────────────────────────────── */
   --t-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
   --t-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   --t-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-theme:  250ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Legacy aliases ──────────────────────────────────────── */
+  /* ── Legacy aliases ─────────────────────────────────────────── */
   --transition-fast:   var(--t-fast);
   --transition-smooth: var(--t-smooth);
   --transition-spring: var(--t-spring);
   --border-glow: var(--border-crimson);
 }
 
+/* ══════════════════════════════════════════════════════════════
+ * LIGHT THEME OVERRIDES
+ * Lighter off-white tactical palette:
+ *   Charcoal     #1C1917 – primary dark text
+ *   Clean White  #FFFFFF – surfaces / panels / cards
+ *   Soft Neutral #F1EEE7 – nested elements / secondary surfaces
+ *   Tan / Sand   #C4B39A – active tactical buttons / accents
+ *   Barley Corn  #A68763 – brand accent / borders
+ *   Off-White    #F8F7F4 – webapp page background
+ * ══════════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* ── Brand / Tactical Off-White Palette ──────────────────────── */
+  --light-charcoal:    #1C1917;  /* primary dark text */
+  --light-off-white:   #F8F7F4;  /* page background – crisp lighter off-white */
+  --light-surface:     #FFFFFF;  /* panels, cards, tables */
+  --light-surface-sub: #F1EEE7;  /* nested elements, inputs, inactive pills */
+  --light-tan:         #C4B39A;  /* warm tan accent / active tactical button */
+  --light-tan-dark:    #B8A489;  /* deeper tan border / secondary */
+  --light-barley-corn: #A68763;  /* barley corn brand accent */
+  --light-barley-dim:  rgba(166, 135, 99, 0.35);
+  --light-barley-text: #6E5335;  /* high contrast accent text (6.2:1) */
+
+  /* Legacy aliases for backward compatibility */
+  --light-mine-shaft:  #1C1917;
+  --light-akaroa:      #FFFFFF;
+  --light-akaroa-dark: #F1EEE7;
+  --light-akaroa-deep: #E8E4DA;
+  --light-white-rock:  #F8F7F4;
+
+  /* ── Core background layers ─────────────────────────────────── */
+  --bg-primary:    #F8F7F4;         /* crisp lighter off-white page background */
+  --bg-secondary:  #FFFFFF;         /* clean white panels, cards */
+  --bg-tertiary:   #F1EEE7;         /* soft warm neutral for nested elements */
+  --bg-glass:      rgba(255, 255, 255, 0.92);
+  --bg-glass-light: rgba(255, 255, 255, 0.82);
+  --bg-header:     #1C1A17;         /* Tactical dark header bar matching screenshot */
+  --bg-drawer:     #FFFFFF;         /* drawer / bottom sheet */
+  --bg-sidebar:    rgba(255, 255, 255, 0.96);
+  --bg-overlay:    rgba(28, 25, 23, 0.45);    /* modal scrim */
+
+  /* ── Active / accent token ───────────────────────────────────── */
+  --crimson:       #A68763;         /* Barley Corn replaces neon in UI */
+  --crimson-dim:   rgba(166, 135, 99, 0.14);
+  --crimson-glow:  rgba(166, 135, 99, 0.25);
+  --accent:        #A68763;
+  --accent-dim:    rgba(166, 135, 99, 0.14);
+  --accent-glow:   rgba(166, 135, 99, 0.25);
+  --accent-text:   #6E5335;
+  --accent-on:     #FFFFFF;
+  --nav-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  --nav-active-bar:    #C4B39A;
+
+  /* ── Surface colours ─────────────────────────────────────────── */
+  --surface-1:     #C4B39A;         /* active tactical button fill */
+  --surface-2:     rgba(28, 25, 23, 0.05);
+  --surface-3:     rgba(166, 135, 99, 0.12);
+
+  /* ── White-alpha helpers (mapped to charcoal alpha on light bg) */
+  --white:         #1C1917;         /* primary text color in light mode */
+  --white-90:      rgba(28, 25, 23, 0.90);
+  --white-60:      rgba(28, 25, 23, 0.60);
+  --white-30:      rgba(28, 25, 23, 0.30);
+  --white-10:      rgba(28, 25, 23, 0.10);
+  --white-06:      rgba(28, 25, 23, 0.06);
+
+  /* ── Status colours ─────────────────────────────────────────── */
+  --nominal:   #15803D;   /* green-700 */
+  --acquiring: #B45309;   /* amber-700 */
+  --standby:   #64748B;   /* slate-500 */
+  --error:     #B91C1C;   /* red-700 */
+
+  /* ── Event type colours ─────────────────────────────────────── */
+  --type-tectonic:           #C0392B;
+  --type-volcanic:           #D35400;
+  --type-landslide:          #7D3C98;
+  --type-cryosphere:         #1A5276;
+  --type-subsidence:         #1E8449;
+  --type-mining:             #9A7D0A;
+  --type-induced-seismicity: #943126;
+  --type-tsunami:            #117A65;
+
+  /* ── Text ────────────────────────────────────────────────────── */
+  --text-primary:   #1C1917;          /* crisp dark stone */
+  --text-secondary: #57534E;          /* mid tone stone */
+  --text-muted:     #78716C;          /* muted stone */
+
+  /* ── Borders ─────────────────────────────────────────────────── */
+  --border-glass:  rgba(28, 25, 23, 0.08);
+  --border-zinc:   rgba(28, 25, 23, 0.12);
+  --border-crimson:rgba(166, 135, 99, 0.45);
+  --border-accent: rgba(166, 135, 99, 0.45);
+
+  /* ── Shadows ─────────────────────────────────────────────────── */
+  --shadow-glow-crimson: 0 0 12px rgba(166, 135, 99, 0.15);
+  --shadow-glow-accent:  0 0 12px rgba(166, 135, 99, 0.15);
+  --shadow-glow-white:   0 0 8px rgba(0, 0, 0, 0.05);
+  --shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-glow-cyan: 0 0 12px rgba(17, 122, 101, 0.15);
+
+  /* ── Shimmer gradient ────────────────────────────────────────── */
+  --shimmer-from: rgba(28, 25, 23, 0.03);
+  --shimmer-via:  rgba(166, 135, 99, 0.08);
+  --shimmer-to:   rgba(28, 25, 23, 0.03);
+
+  /* ── Slider ──────────────────────────────────────────────────── */
+  --slider-fill:  rgba(166, 135, 99, 0.25);
+  --slider-thumb: #A68763;
+  --slider-thumb-glow: rgba(166, 135, 99, 0.4);
+
+  /* ── Globe / 3D ──────────────────────────────────────────────── */
+  --globe-bg:             #F8F7F4;
+  --globe-wires-sphere:   #E8E5DD;
+  --globe-wires-emissive: #DDD8CD;
+  --globe-graticule-main: #B8A489;
+  --globe-graticule-sub:  #D8D2C4;
+  --globe-fault-lines:    #C0392B;
+  --globe-atmo-wires:     #E8E5DD;
+  --globe-atmo-standard:  #B8A489;
+  --topo-terrain:         #E5E0D6;
+  --topo-wireframe:       #786C5E;
+  --topo-bg:              #F8F7F4;
+
+  /* ── Legacy colour remaps ────────────────────────────────────── */
+  --color-glacier:    #1A5276;
+  --color-earthquake: var(--crimson);
+  --color-agriculture:#1E8449;
+  --color-wildfire:   #D35400;
+}
+
 /* ── Base reset ─────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  height: 100%; width: 100%; overflow: hidden;
+  height: 100%; width: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Globe page locks overflow via its own `overflow-hidden` class on <main>.
+   Event Directory pages need the document to scroll. */
+html { overflow: auto; }
+body { overflow: auto; }
+
 
 /* ── Tactical glass surfaces ─────────────────────────────────── */
 .glass {
@@ -110,7 +311,7 @@ html, body {
 }
 
 .glass-light {
-  background: rgba(39, 39, 42, 0.50);
+  background: var(--bg-glass-light);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-glass);
@@ -126,7 +327,7 @@ html, body {
 
 /* ── Sidebar glass (deep blur, very dark) ───────────────────── */
 .glass-sidebar {
-  background: rgba(9, 9, 11, 0.88);
+  background: var(--bg-sidebar);
   backdrop-filter: blur(32px) saturate(180%);
   -webkit-backdrop-filter: blur(32px) saturate(180%);
   border-right: 1px solid var(--border-zinc);
@@ -142,7 +343,7 @@ html, body {
 
 /* ── Telemetry header status bar ─────────────────────────────── */
 .telem-header {
-  background: rgba(9, 9, 11, 0.96);
+  background: var(--bg-header);
   border-bottom: 1px solid var(--border-zinc);
   font-family: var(--font-mono);
 }
@@ -167,16 +368,16 @@ html, body {
 
 .nav-tab.active {
   color: var(--white);
-  background: rgba(239, 68, 68, 0.10);
-  border-color: var(--crimson);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  box-shadow: var(--nav-active-shadow);
 }
 
 .nav-tab.active::after {
   content: '';
   position: absolute; bottom: -1px; left: 0; right: 0;
-  height: 2px; background: var(--crimson);
-  box-shadow: 0 0 6px var(--crimson);
+  height: 2px; background: var(--nav-active-bar);
+  box-shadow: 0 0 6px var(--accent);
 }
 
 /* ── Status indicator dots ──────────────────────────────────── */
@@ -374,7 +575,7 @@ html, body {
   100% { background-position:  200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, var(--white-06) 25%, var(--white-10) 50%, var(--white-06) 75%);
+  background: linear-gradient(90deg, var(--shimmer-from) 25%, var(--shimmer-via) 50%, var(--shimmer-to) 75%);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
@@ -398,12 +599,12 @@ html, body {
 }
 
 /* ── Glow text utilities ─────────────────────────────────────── */
-.glow-text-crimson { text-shadow: 0 0 8px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.20); }
-.glow-text-white   { text-shadow: 0 0 8px rgba(255, 255, 255, 0.3); }
+.glow-text-crimson { text-shadow: 0 0 8px var(--shadow-glow-accent), 0 0 20px var(--accent-dim); }
+.glow-text-white   { text-shadow: 0 0 8px var(--shadow-glow-white); }
 .glow-text-cyan    { text-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 0 24px rgba(0, 229, 255, 0.15); }
 /* Legacy aliases */
 .gradient-text {
-  background: linear-gradient(135deg, #ffffff, #a1a1aa);
+  background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -447,8 +648,8 @@ html, body {
   font-family: var(--font-mono); backdrop-filter: blur(12px);
   border: 1px solid var(--border-zinc); z-index: 15; pointer-events: none;
 }
-.compare-label-before { left: 20px; background: rgba(255,255,255,0.06); color: var(--white); }
-.compare-label-after  { right: 20px; background: var(--crimson-dim); color: var(--crimson); }
+.compare-label-before { left: 20px; background: var(--surface-3); color: var(--white); }
+.compare-label-after  { right: 20px; background: var(--accent-dim); color: var(--accent); }
 
 /* ── Global schematic world map node dots ────────────────────── */
 .world-node {
@@ -477,10 +678,10 @@ html, body {
   transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
   white-space: nowrap;
 }
-.tac-btn:hover { color: var(--white); border-color: var(--white-30); background: rgba(255,255,255,0.05); }
-.tac-btn.active { color: var(--white); border-color: var(--white); background: rgba(255,255,255,0.10); }
-.tac-btn.crimson { color: var(--crimson); border-color: var(--border-crimson); }
-.tac-btn.crimson:hover { background: var(--crimson-dim); box-shadow: 0 0 8px var(--crimson-glow); }
+.tac-btn:hover { color: var(--white); border-color: var(--white-30); background: var(--surface-2); }
+.tac-btn.active { color: var(--white); border-color: var(--white); background: var(--surface-1); }
+.tac-btn.crimson { color: var(--accent); border-color: var(--border-accent); }
+.tac-btn.crimson:hover { background: var(--accent-dim); box-shadow: 0 0 8px var(--accent-glow); }
 
 /* ── anchor tac-btn (no underline) ─────────────────────────── */
 a.tac-btn { text-decoration: none; }
@@ -501,7 +702,7 @@ a.tac-btn { text-decoration: none; }
     width: 100% !important;
     max-height: 55vh;
     border-left: none !important;
-    border-top: 1px solid rgba(255,255,255,0.10);
+    border-top: 1px solid var(--border-zinc);
     overflow-y: auto;
   }
 }
@@ -568,3 +769,541 @@ a.tac-btn { text-decoration: none; }
   animation: spin 0.8s linear infinite;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+ * EVENT DIRECTORY – Layout & Components
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* ── Page root ───────────────────────────────────────────────── */
+.events-page-layout {
+  min-height: calc(100dvh - 42px);
+  background: var(--bg-primary);
+}
+
+/* ── Sticky search bar ──────────────────────────────────────── */
+.events-search-bar {
+  position: sticky;
+  top: 42px;
+  z-index: 40;
+  padding: 10px 16px 6px;
+  border-bottom: 1px solid var(--border-zinc);
+}
+
+/* ── Search input ────────────────────────────────────────────── */
+.events-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 28px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-zinc);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-theme);
+}
+.events-search-input::placeholder { color: var(--text-muted); }
+.events-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
+}
+
+/* ── Content area: 3 columns (filters | results | drawer) ─── */
+.events-content-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .events-content-area {
+    /* sidebar + results */
+  }
+}
+
+/* ── Filters sidebar ─────────────────────────────────────────── */
+.events-filters-panel {
+  position: sticky;
+  top: calc(42px + 68px); /* header + search bar */
+  max-height: calc(100dvh - 42px - 68px);
+  width: 220px;
+  flex-shrink: 0;
+  padding: 12px 12px 24px;
+  border-right: 1px solid var(--border-zinc);
+  overflow-y: auto;
+  background: var(--bg-glass);
+  align-self: flex-start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--white-10) transparent;
+}
+
+/* ── Results area ────────────────────────────────────────────── */
+.events-results-area {
+  padding: 12px 16px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+/* ── Results header ─────────────────────────────────────────── */
+.events-results-header {
+  padding: 0 2px 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+/* ── Summary drawer (right side panel on desktop) ───────────── */
+.event-drawer {
+  position: fixed;
+  top: 42px;
+  right: 0;
+  width: 340px;
+  height: calc(100dvh - 42px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--border-zinc);
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  background: var(--bg-drawer);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+}
+
+/* On mobile: bottom sheet */
+@media (max-width: 767px) {
+  .event-drawer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 75dvh;
+    border-left: none;
+    border-top: 1px solid var(--border-zinc);
+  }
+}
+
+/* ── Scanning line on filter change ─────────────────────────── */
+@keyframes scan-across {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+.scan-across {
+  animation: scan-across 0.6s ease-in-out;
+  background: linear-gradient(90deg, transparent, var(--crimson), transparent);
+  height: 1px;
+  width: 60%;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+/* ── Staggered card entry ────────────────────────────────────── */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  animation: card-in 0.25s ease-out both;
+}
+
+/* ── Event directory page: body overflow override ───────────── */
+body.events-route {
+  overflow: auto !important;
+}
+
+/* ── prefers-reduced-motion overrides ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .card-enter,
+  .scan-across,
+  .radar-scan-line,
+  .event-ring,
+  .shimmer {
+    animation: none !important;
+    transition: none !important;
+  }
+  .event-drawer {
+    transition: none !important;
+  }
+}
+
+/* ── Select input ────────────────────────────────────────────── */
+select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ── line-clamp ─────────────────────────────────────────────── */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * THEME TRANSITION
+ * Apply smooth color transitions on theme switch.
+ * Disabled by prefers-reduced-motion.
+ * ══════════════════════════════════════════════════════════════ */
+html {
+  transition:
+    background-color var(--t-theme),
+    color var(--t-theme);
+}
+
+*, *::before, *::after {
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke;
+  transition-duration: var(--t-theme);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Exclude elements that have their own transitions */
+.tac-btn, .nav-tab, .tac-checkbox,
+.tac-slider, .tac-slider-crimson,
+.timeline-slider, .target-node-card,
+.events-search-input {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: var(--t-theme), var(--t-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html, *, *::before, *::after {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ── Focus ring (visible in both themes) ─────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Text selection ──────────────────────────────────────────── */
+::selection {
+  background: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+/* ── Scrollbar (theme-aware) ─────────────────────────────────── */
+[data-theme="light"]::-webkit-scrollbar-thumb { background: rgba(166, 135, 99, 0.30); }
+[data-theme="light"]::-webkit-scrollbar-thumb:hover { background: rgba(166, 135, 99, 0.55); }
+[data-theme="light"] * { scrollbar-color: rgba(166, 135, 99, 0.30) transparent; }
+
+/* ── Target-node card – light mode active ────────────────────── */
+[data-theme="light"] .target-node-card.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: none;
+}
+
+/* ── Badge variants – light mode ────────────────────────────── */
+[data-theme="light"] .badge-tectonic   { color: var(--type-tectonic);           background: rgba(192,57,43,0.10);   border-color: rgba(192,57,43,0.28); }
+[data-theme="light"] .badge-cryosphere { color: var(--type-cryosphere);         background: rgba(26,82,118,0.10);   border-color: rgba(26,82,118,0.28); }
+[data-theme="light"] .badge-volcanic   { color: var(--type-volcanic);            background: rgba(211,84,0,0.10);    border-color: rgba(211,84,0,0.28); }
+[data-theme="light"] .badge-biomass    { color: var(--type-subsidence);         background: rgba(30,132,73,0.10);   border-color: rgba(30,132,73,0.28); }
+[data-theme="light"] .badge-glacier    { color: var(--type-cryosphere);         background: rgba(26,82,118,0.10);   border-color: rgba(26,82,118,0.28); }
+[data-theme="light"] .badge-earthquake { color: var(--type-tectonic);           background: rgba(192,57,43,0.10);   border-color: rgba(192,57,43,0.28); }
+[data-theme="light"] .badge-agriculture{ color: var(--type-subsidence);         background: rgba(30,132,73,0.10);   border-color: rgba(30,132,73,0.28); }
+[data-theme="light"] .badge-wildfire   { color: var(--type-volcanic);           background: rgba(211,84,0,0.10);    border-color: rgba(211,84,0,0.28); }
+
+/* ── Lock ring (brand dot) – use barley corn in light mode ──── */
+[data-theme="light"] .lock-ring {
+  animation: crimson-pulse-light 2s ease-in-out infinite;
+}
+@keyframes crimson-pulse-light {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(166, 135, 99, 0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(166, 135, 99, 0); }
+}
+
+/* ── Radar scan line – subtle in light mode ──────────────────── */
+[data-theme="light"] .radar-scan-line {
+  background: linear-gradient(to bottom, transparent, rgba(166, 135, 99, 0.06), transparent);
+}
+
+/* ── Status dot glows – reduced in light mode ────────────────── */
+[data-theme="light"] .status-dot.active {
+  box-shadow: 0 0 5px var(--crimson);
+}
+
+/* ── Glow text – no neon in light mode ──────────────────────── */
+[data-theme="light"] .glow-text-crimson { text-shadow: none; }
+[data-theme="light"] .glow-text-white   { text-shadow: none; }
+
+/* ── Events filters panel scrollbar ─────────────────────────── */
+[data-theme="light"] .events-filters-panel {
+  scrollbar-color: rgba(166, 135, 99, 0.30) transparent;
+}
+
+/* ── Theme toggle button ──────────────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-zinc);
+  background: var(--surface-2);
+}
+.theme-toggle[aria-label*="light"] { color: var(--text-muted); }
+.theme-toggle[aria-label*="dark"]  { color: var(--text-muted); }
+
+/* ── Tailwind utility mapping for Light Mode ─────────────────── */
+[data-theme="light"] .text-white {
+  color: var(--text-primary) !important;
+}
+[data-theme="light"] .text-white\/90,
+[data-theme="light"] .text-white\/80 {
+  color: var(--text-primary) !important;
+}
+[data-theme="light"] .text-white\/70,
+[data-theme="light"] .text-white\/60 {
+  color: var(--text-secondary) !important;
+}
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/40,
+[data-theme="light"] .text-white\/35,
+[data-theme="light"] .text-white\/30,
+[data-theme="light"] .text-white\/25,
+[data-theme="light"] .text-white\/20 {
+  color: var(--text-muted) !important;
+}
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] .border-white\/15,
+[data-theme="light"] .border-white\/10 {
+  border-color: var(--border-zinc) !important;
+}
+[data-theme="light"] .border-white\/08,
+[data-theme="light"] .border-white\/06,
+[data-theme="light"] .border-white\/5 {
+  border-color: var(--border-glass) !important;
+}
+[data-theme="light"] .bg-white\/10,
+[data-theme="light"] .bg-white\/5 {
+  background-color: var(--surface-1) !important;
+}
+[data-theme="light"] .bg-black\/20,
+[data-theme="light"] .bg-black\/40 {
+  background-color: var(--surface-1) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * TACTICAL TOP BAR (.telem-header) & BOTTOM BAR (.pass-scrubber)
+ * Dark tactical bars with warm tan accents matching screenshot
+ * ══════════════════════════════════════════════════════════════ */
+
+/* Top bar in light mode */
+[data-theme="light"] .telem-header {
+  background: #1C1A17 !important;
+  border-bottom: 1px solid rgba(166, 135, 99, 0.35) !important;
+  color: #E8E0D5 !important;
+}
+
+[data-theme="light"] .telem-header .border-\[var\(--border-zinc\)\],
+[data-theme="light"] .telem-header [class*="border-[var(--border-zinc)]"],
+[data-theme="light"] .telem-header .border-white\/10,
+[data-theme="light"] .telem-header .border-white\/20 {
+  border-color: rgba(166, 135, 99, 0.30) !important;
+}
+
+/* Brand text inside header */
+[data-theme="light"] .telem-header .brand-title,
+[data-theme="light"] .telem-header p.text-\[var\(--text-primary\)\],
+[data-theme="light"] .telem-header [class*="text-[var(--text-primary)]"],
+[data-theme="light"] .telem-header p.text-white {
+  color: #F2EDE4 !important;
+}
+
+[data-theme="light"] .telem-header .brand-sub,
+[data-theme="light"] .telem-header p.text-\[var\(--text-muted\)\],
+[data-theme="light"] .telem-header [class*="text-[var(--text-muted)]"],
+[data-theme="light"] .telem-header p.text-white\/40 {
+  color: #8F7E6B !important;
+}
+
+/* Nav tabs in top bar */
+[data-theme="light"] .telem-header .nav-tab {
+  color: #B8A489 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+[data-theme="light"] .telem-header .nav-tab:hover {
+  color: #F2EDE4 !important;
+  background: rgba(166, 135, 99, 0.14) !important;
+}
+
+[data-theme="light"] .telem-header .nav-tab.active {
+  background: #C4B39A !important;
+  color: #1C1A17 !important;
+  font-weight: 700 !important;
+  border: 1px solid #B8A489 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="light"] .telem-header .nav-tab.active::after {
+  display: none !important;
+}
+
+/* Telemetry stat chips */
+[data-theme="light"] .telem-header .telem-chip {
+  border-left-color: rgba(166, 135, 99, 0.25) !important;
+  color: #8F7E6B !important;
+}
+
+[data-theme="light"] .telem-header .telem-chip .value {
+  color: #F2EDE4 !important;
+}
+
+/* Theme toggle button in header */
+[data-theme="light"] .telem-header .theme-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(166, 135, 99, 0.35);
+  color: #C4B39A;
+}
+
+[data-theme="light"] .telem-header .theme-toggle:hover {
+  background: rgba(166, 135, 99, 0.20);
+  border-color: #C4B39A;
+  color: #F2EDE4;
+}
+
+/* Bottom bar (PassScrubber) in light mode */
+[data-theme="light"] .pass-scrubber {
+  background: #1C1A17 !important;
+  border-top: 1px solid rgba(166, 135, 99, 0.35) !important;
+  color: #E8E0D5 !important;
+}
+
+[data-theme="light"] .pass-scrubber .panel-label {
+  color: #8F7E6B !important;
+}
+
+[data-theme="light"] .pass-scrubber [class*="text-[var(--text-primary)]"] {
+  color: #F2EDE4 !important;
+}
+
+[data-theme="light"] .pass-scrubber [class*="text-[var(--text-secondary)]"] {
+  color: #B8A489 !important;
+}
+
+[data-theme="light"] .pass-scrubber [class*="text-[var(--text-muted)]"] {
+  color: #8F7E6B !important;
+}
+
+[data-theme="light"] .pass-scrubber .border-\[var\(--border-zinc\)\],
+[data-theme="light"] .pass-scrubber [class*="border-[var(--border-zinc)]"] {
+  border-color: rgba(166, 135, 99, 0.30) !important;
+}
+
+[data-theme="light"] .pass-scrubber .bg-\[var\(--border-zinc\)\],
+[data-theme="light"] .pass-scrubber [class*="bg-[var(--border-zinc)]"] {
+  background-color: rgba(166, 135, 99, 0.30) !important;
+}
+
+/* Play button */
+[data-theme="light"] .pass-scrubber .play-btn {
+  background: #C4B39A !important;
+  border: 1px solid #B8A489 !important;
+  color: #1C1A17 !important;
+}
+[data-theme="light"] .pass-scrubber .play-btn svg {
+  color: #1C1A17 !important;
+  fill: #1C1A17 !important;
+}
+[data-theme="light"] .pass-scrubber .play-btn:hover {
+  background: #D7C9AE !important;
+}
+
+/* Speed buttons */
+[data-theme="light"] .pass-scrubber .speed-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(166, 135, 99, 0.35) !important;
+  color: #B8A489 !important;
+}
+[data-theme="light"] .pass-scrubber .speed-btn:hover {
+  background: rgba(166, 135, 99, 0.15) !important;
+  color: #F2EDE4 !important;
+}
+[data-theme="light"] .pass-scrubber .speed-btn.active {
+  background: #C4B39A !important;
+  border-color: #B8A489 !important;
+  color: #1C1A17 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Pass scrubber slider */
+[data-theme="light"] .pass-scrubber .timeline-slider {
+  background: linear-gradient(
+    to right,
+    #A68763 0%, #A68763 var(--progress, 0%),
+    rgba(255, 255, 255, 0.12) var(--progress, 0%), rgba(255, 255, 255, 0.12) 100%
+  ) !important;
+}
+[data-theme="light"] .pass-scrubber .timeline-slider::-webkit-slider-thumb {
+  background: #1C1A17 !important;
+  border: 2px solid #C4B39A !important;
+  box-shadow: 0 0 8px rgba(196, 179, 154, 0.45) !important;
+}
+[data-theme="light"] .pass-scrubber .timeline-slider::-moz-range-thumb {
+  background: #1C1A17 !important;
+  border: 2px solid #C4B39A !important;
+  box-shadow: 0 0 8px rgba(196, 179, 154, 0.45) !important;
+}
+
+/* Pass scrubber ticks */
+[data-theme="light"] .pass-scrubber .pass-tick-bar {
+  background-color: rgba(166, 135, 99, 0.35) !important;
+}
+[data-theme="light"] .pass-scrubber .pass-tick-bar.active {
+  background-color: #C4B39A !important;
+  box-shadow: 0 0 6px #C4B39A !important;
+}
+
+/* Ensure white text utilities inside tactical bars don't get flipped to charcoal */
+[data-theme="light"] .telem-header .text-white,
+[data-theme="light"] .pass-scrubber .text-white,
+[data-theme="light"] .telem-header .text-white\/90,
+[data-theme="light"] .pass-scrubber .text-white\/90,
+[data-theme="light"] .telem-header .text-white\/80,
+[data-theme="light"] .pass-scrubber .text-white\/80 {
+  color: #F2EDE4 !important;
+}
+[data-theme="light"] .telem-header .text-white\/70,
+[data-theme="light"] .pass-scrubber .text-white\/70,
+[data-theme="light"] .telem-header .text-white\/60,
+[data-theme="light"] .pass-scrubber .text-white\/60 {
+  color: #C4B39A !important;
+}
+[data-theme="light"] .telem-header .text-white\/50,
+[data-theme="light"] .pass-scrubber .text-white\/50,
+[data-theme="light"] .telem-header .text-white\/40,
+[data-theme="light"] .pass-scrubber .text-white\/40,
+[data-theme="light"] .telem-header .text-white\/30,
+[data-theme="light"] .pass-scrubber .text-white\/30 {
+  color: #8F7E6B !important;
+}

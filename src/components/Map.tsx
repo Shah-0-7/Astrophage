@@ -28,23 +28,26 @@ import { buildTemporalDecayLayers } from '@/components/map-layers/TemporalDecayL
 import type { MapLayerConfig } from '@/lib/types';
 import { setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useTheme } from '@/lib/ThemeProvider';
 
 // Serve the MapLibre worker from /public to avoid Next.js bundling issues
 if (typeof window !== 'undefined') {
   setWorkerUrl('/maplibre-gl-worker.mjs');
 }
 
-// ESRI World Dark Gray Base - totally free, no API keys, pure raster
-const MAP_STYLE: any = {
+// ESRI World Gray Base (Dark / Light) - free raster basemap
+const getMapStyle = (isLight: boolean): any => ({
   version: 8,
   sources: {
     esri: {
       type: 'raster',
       tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+        isLight
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+          : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
-      tileSize: 256
-    }
+      tileSize: 256,
+    },
   },
   layers: [
     {
@@ -52,10 +55,10 @@ const MAP_STYLE: any = {
       type: 'raster',
       source: 'esri',
       minzoom: 0,
-      maxzoom: 19
-    }
-  ]
-};
+      maxzoom: 19,
+    },
+  ],
+});
 
 const CATEGORY_COLOR: Record<string, { fill: string; stroke: string; icon: string }> = {
   TECTONIC:  { fill: 'rgba(239,68,68,0.18)',  stroke: '#ef4444', icon: '▲' },
@@ -106,6 +109,10 @@ function computeMinZoom(width: number, height: number): number {
 }
 
 export default function MapComponent() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const mapStyle = useMemo(() => getMapStyle(isLight), [isLight]);
+
   const activeNodeId    = useStore(s => s.activeNodeId);
   const setActiveNodeId = useStore(s => s.setActiveNodeId);
   const phaseFilterMode    = useStore(s => s.phaseFilterMode);
@@ -453,7 +460,7 @@ export default function MapComponent() {
   }, []);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 w-full h-full bg-black">
+    <div ref={containerRef} className="absolute inset-0 w-full h-full" style={{ background: 'var(--bg-primary)' }}>
 
       {/* ── Seismic Event HUD Alert ───────────────────────────── */}
       {seismicAlert.length > 0 && (
@@ -640,7 +647,7 @@ export default function MapComponent() {
           const nowAbove = evt.viewState.zoom > HEATMAP_THRESHOLD;
           setAboveHeatmapZoom(prev => (prev !== nowAbove ? nowAbove : prev));
         }}
-        mapStyle={MAP_STYLE}
+        mapStyle={mapStyle}
         attributionControl={false}
         renderWorldCopies={false}
         minZoom={minZoom}

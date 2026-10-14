@@ -39,6 +39,7 @@ import {
   type CauseFilter,
 } from '@/lib/useGlobalEvents';
 import type { SourceHealth } from '@/lib/globalEvents';
+import { useTheme } from '@/lib/ThemeProvider';
 
 // ── Globe view mode ───────────────────────────────────────────
 export type GlobeViewMode = 'WIRES' | 'TERRAIN' | 'SATELLITE';
@@ -233,7 +234,7 @@ function useGlobeTextures(mode: GlobeViewMode): { textures: TexBundle; loading: 
 }
 
 // ── GraticuleLines (WIRES mode) ───────────────────────────────
-const GraticuleLines = memo(function GraticuleLines() {
+const GraticuleLines = memo(function GraticuleLines({ isLight }: { isLight?: boolean }) {
   const lines = useMemo(() => {
     const result: { pts: THREE.Vector3[]; main: boolean }[] = [];
     const R   = GLOBE_RADIUS + 0.003;
@@ -256,13 +257,16 @@ const GraticuleLines = memo(function GraticuleLines() {
     return result;
   }, []);
 
+  const mainColor = isLight ? '#A68763' : '#22d3ee';
+  const subColor  = isLight ? '#DCD7CE' : '#083d52';
+
   return (
     <>
       {lines.map((l, i) => (
         <Line
           key={i}
           points={l.pts}
-          color={l.main ? '#22d3ee' : '#083d52'}
+          color={l.main ? mainColor : subColor}
           lineWidth={l.main ? 0.9 : 0.3}
           transparent
           opacity={l.main ? 0.95 : 0.45}
@@ -338,10 +342,11 @@ function EventMarker({
 
 // ── FaultLines ────────────────────────────────────────────────
 function FaultLines({
-  data, elevationOffset,
+  data, elevationOffset, isLight,
 }: {
   data: object | null;
   elevationOffset: number;
+  isLight?: boolean;
 }) {
   const lines = useMemo(() => {
     if (!data) return [];
@@ -364,10 +369,12 @@ function FaultLines({
     return result;
   }, [data, elevationOffset]);
 
+  const faultColor = isLight ? '#C0392B' : '#ef4444';
+
   return (
     <>
       {lines.map((pts, i) => (
-        <Line key={i} points={pts} color="#ef4444" lineWidth={0.5} transparent opacity={0.35} />
+        <Line key={i} points={pts} color={faultColor} lineWidth={0.5} transparent opacity={0.35} />
       ))}
     </>
   );
@@ -568,7 +575,7 @@ function TileTextureUpdater({
 
 // ── GlobeMesh (single sphere for one mode) ────────────────────
 function GlobeMesh({
-  mode, textures, reliefScale, showCityLights, isMobile, tiledSatTex,
+  mode, textures, reliefScale, showCityLights, isMobile, tiledSatTex, isLight,
 }: {
   mode: GlobeViewMode;
   textures: TexBundle;
@@ -576,13 +583,16 @@ function GlobeMesh({
   showCityLights: boolean;
   isMobile: boolean;
   tiledSatTex: THREE.CanvasTexture | null;
+  isLight?: boolean;
 }) {
   const segs = isMobile
     ? (mode === 'TERRAIN' ? 128 : 96)
     : (mode === 'TERRAIN' ? 192 : 128);
 
   const dispScale = mode === 'TERRAIN' ? DISP_PER_SCALE * reliefScale : 0;
-  const atmoColor = mode === 'WIRES' ? '#0a2540' : '#1a6fff';
+  const atmoColor = mode === 'WIRES'
+    ? (isLight ? '#E5E2DA' : '#0a2540')
+    : (isLight ? '#B8A489' : '#1a6fff');
   const atmoOpacity = mode === 'WIRES' ? 0.10 : 0.07;
 
   // For SATELLITE mode: prefer the progressively-tiled CanvasTexture;
@@ -596,9 +606,9 @@ function GlobeMesh({
         {mode === 'WIRES' ? (
           // Holographic dark sphere – emissive keeps it visible
           <meshStandardMaterial
-            color="#081828"
-            emissive="#0d2d4a"
-            emissiveIntensity={0.6}
+            color={isLight ? '#E5E2DA' : '#081828'}
+            emissive={isLight ? '#DCD7CE' : '#0d2d4a'}
+            emissiveIntensity={isLight ? 0.35 : 0.6}
             roughness={0.7}
           />
         ) : mode === 'SATELLITE' ? (
@@ -713,11 +723,13 @@ interface SceneProps {
   tiledSatTex:     THREE.CanvasTexture | null;
   /** Tile-load callback from useTiledGlobeTexture (null when not in SATELLITE mode) */
   tiledLoadTiles:  ((lat: number, lon: number, z: number) => void) | null;
+  isLight?:        boolean;
 }
 
 function GlobeScene({
   events, faultLines, showFaultLines, selectedEvent, onSelectEvent, flyTo,
   viewMode, textures, reliefScale, showCityLights, isMobile, tiledSatTex, tiledLoadTiles,
+  isLight,
 }: SceneProps) {
   const [isInteracting, setIsInteracting] = useState(false);
   const idleTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -744,7 +756,7 @@ function GlobeScene({
       <directionalLight position={[-4, -2, -4]} intensity={0.8} color="#c8d8ff" />
       <directionalLight position={[0, 5, -5]} intensity={0.5} color="#ffffff" />
       {viewMode === 'WIRES' && (
-        <directionalLight position={[0, 0, -6]} intensity={0.5} color="#22d3ee" />
+        <directionalLight position={[0, 0, -6]} intensity={0.5} color={isLight ? '#A68763' : '#22d3ee'} />
       )}
 
       {/* ── Globe sphere ── */}
@@ -755,6 +767,7 @@ function GlobeScene({
         showCityLights={showCityLights}
         isMobile={isMobile}
         tiledSatTex={tiledSatTex}
+        isLight={isLight}
       />
 
       {/* ── Progressive tile updater (SATELLITE only) ── */}
@@ -764,10 +777,10 @@ function GlobeScene({
       />
 
       {/* ── Graticule (WIRES only) ── */}
-      {viewMode === 'WIRES' && <GraticuleLines />}
+      {viewMode === 'WIRES' && <GraticuleLines isLight={isLight} />}
 
       {/* ── Tectonic plate boundaries ── */}
-      {showFaultLines && <FaultLines data={faultLines} elevationOffset={elevOffset} />}
+      {showFaultLines && <FaultLines data={faultLines} elevationOffset={elevOffset} isLight={isLight} />}
 
       {/* ── Event markers ── */}
       {events.map(ev => (
@@ -840,9 +853,9 @@ function EventPanel({
       className="event-side-panel absolute top-0 right-0 bottom-0 z-30 flex flex-col overflow-y-auto"
       style={{
         width: 'clamp(280px, 30vw, 360px)',
-        background: 'rgba(9,9,11,0.97)',
-        borderLeft: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.7)',
+        background: 'var(--bg-drawer)',
+        borderLeft: '1px solid var(--border-zinc)',
+        boxShadow: 'var(--shadow-panel)',
       }}
     >
       <div className="p-4 border-b flex-shrink-0" style={{ borderBottomColor: `${cfg.color}22` }}>
@@ -864,18 +877,18 @@ function EventPanel({
           </div>
           <button
             onClick={onClose}
-            className="text-white/30 hover:text-white transition-colors font-mono text-lg leading-none cursor-pointer ml-2"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors font-mono text-lg leading-none cursor-pointer ml-2"
           >
             ×
           </button>
         </div>
-        <h3 className="font-mono text-[14px] font-700 text-white leading-snug mt-1">{event.title}</h3>
-        <p className="font-mono text-[10px] text-white/40 mt-1 tracking-wider">
+        <h3 className="font-mono text-[14px] font-700 text-[var(--text-primary)] leading-snug mt-1">{event.title}</h3>
+        <p className="font-mono text-[10px] text-[var(--text-muted)] mt-1 tracking-wider">
           {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
-      <div className="p-4 border-b border-white/08 flex-shrink-0">
+      <div className="p-4 border-b border-[var(--border-glass)] flex-shrink-0">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="panel-label mb-1">MAGNITUDE</p>
@@ -886,37 +899,37 @@ function EventPanel({
           </div>
           <div>
             <p className="panel-label mb-1">DEPTH (km)</p>
-            <p className="font-mono text-[22px] font-700 text-white leading-none">
+            <p className="font-mono text-[22px] font-700 text-[var(--text-primary)] leading-none">
               {event.depth?.toFixed(0) ?? '—'}
             </p>
           </div>
           <div>
             <p className="panel-label mb-1">LATITUDE</p>
-            <p className="font-mono text-[13px] font-600 text-white/80">
+            <p className="font-mono text-[13px] font-600 text-[var(--text-secondary)]">
               {event.lat.toFixed(3)}°{event.lat >= 0 ? 'N' : 'S'}
             </p>
           </div>
           <div>
             <p className="panel-label mb-1">LONGITUDE</p>
-            <p className="font-mono text-[13px] font-600 text-white/80">
+            <p className="font-mono text-[13px] font-600 text-[var(--text-secondary)]">
               {Math.abs(event.lon).toFixed(3)}°{event.lon >= 0 ? 'E' : 'W'}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="p-4 border-b border-white/08 flex-shrink-0">
+      <div className="p-4 border-b border-[var(--border-glass)] flex-shrink-0">
         <p className="panel-label mb-2">DATA SOURCES</p>
         <div className="flex flex-wrap gap-1.5">
           {event.sources.map(src => (
             <span key={src} className="font-mono text-[9px] px-2 py-0.5 rounded-sm"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-secondary)' }}>
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-zinc)', color: 'var(--text-secondary)' }}>
               {src}
             </span>
           ))}
         </div>
         <a href={event.source_url} target="_blank" rel="noopener noreferrer"
-           className="inline-flex items-center gap-1.5 mt-3 font-mono text-[10px] tracking-wider text-white/40 hover:text-white/70 transition-colors">
+           className="inline-flex items-center gap-1.5 mt-3 font-mono text-[10px] tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
           <span style={{ color: cfg.color }}>↗</span> ORIGINAL RECORD
         </a>
       </div>
@@ -927,8 +940,8 @@ function EventPanel({
            style={{ borderColor: `${cfg.color}44`, color: cfg.color }}>
           <span>⊕</span> VIEW FULL DETAIL
         </a>
-        <p className="font-mono text-[8px] text-white/20 text-center mt-2 tracking-wider">
-          InSAR displacement detail — next step
+        <p className="font-mono text-[8px] text-[var(--text-muted)] text-center mt-2 tracking-wider">
+          Full analysis, related events &amp; enrichment
         </p>
       </div>
 
@@ -1367,6 +1380,8 @@ export default function GlobalSchematicGlobe() {
 
   // Mobile detection
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   // Fly to user location when obtained
   useEffect(() => { if (userLocation) setFlyTo(userLocation); }, [userLocation]);
@@ -1377,7 +1392,7 @@ export default function GlobalSchematicGlobe() {
   }, [selectedEvent]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: '#09090b' }}>
+    <div className="absolute inset-0 overflow-hidden" style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}>
       {/* Radar scan overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-[51] opacity-20">
         <div className="radar-scan-line w-full h-[200%]" />
@@ -1389,7 +1404,7 @@ export default function GlobalSchematicGlobe() {
       ) : (
         <Canvas
           camera={{ position: [0, 0, GLOBE_RADIUS * 2.5], fov: 45 }}
-          style={{ background: '#09090b' }}
+          style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}
           gl={{ antialias: true, alpha: false }}
           dpr={[1, 2]}
         >
@@ -1408,6 +1423,7 @@ export default function GlobalSchematicGlobe() {
               isMobile={isMobile}
               tiledSatTex={tiledSatTex}
               tiledLoadTiles={tiledLoadTiles}
+              isLight={isLight}
             />
           </Suspense>
         </Canvas>

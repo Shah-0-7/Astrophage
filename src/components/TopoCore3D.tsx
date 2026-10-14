@@ -22,6 +22,7 @@ import { OrbitControls, OrthographicCamera, Html } from '@react-three/drei';
 import { useStore } from '@/lib/store';
 import { TARGET_NODES, PASS_EPOCHS } from '@/lib/mockData';
 import type { CameraPreset, PolVar, PointProbeResult } from '@/lib/types';
+import { useTheme } from '@/lib/ThemeProvider';
 
 const CAMERA_SETTINGS = {
   ISO_45:     { position: [5, 5, 5], zoom: 200 },
@@ -41,7 +42,7 @@ function CameraController({ preset }: { preset: CameraPreset }) {
   return null;
 }
 
-function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
+function TerrainMesh({ currentPassIndex, zExaggeration, layers, isLight }: any) {
   const { positions, normals, linePositions, probeH } = useMemo(() => {
     const GRID = 40;
     const heightmap: number[] = [];
@@ -143,6 +144,10 @@ function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
     };
   }, [currentPassIndex, zExaggeration]);
 
+  const terrainColor = isLight ? '#E5E0D6' : '#18181b';
+  const wireColor = isLight ? '#786C5E' : '#ffffff';
+  const probeColor = isLight ? '#1C1917' : '#ffffff';
+
   return (
     <group>
       <mesh>
@@ -150,7 +155,7 @@ function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
           <bufferAttribute attach="attributes-normal" args={[normals, 3]} />
         </bufferGeometry>
-        <meshStandardMaterial color="#18181b" roughness={0.9} metalness={0.1} />
+        <meshStandardMaterial color={terrainColor} roughness={0.9} metalness={0.1} />
       </mesh>
       
       {layers.wireframe && (
@@ -158,7 +163,7 @@ function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[linePositions, 3]} />
           </bufferGeometry>
-          <lineBasicMaterial color="#ffffff" opacity={0.65} transparent linewidth={1} />
+          <lineBasicMaterial color={wireColor} opacity={0.65} transparent linewidth={1} />
         </lineSegments>
       )}
 
@@ -166,13 +171,13 @@ function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
       <group position={[-0.05, probeH, -0.05]}>
           <mesh>
               <sphereGeometry args={[0.02, 16, 16]} />
-              <meshBasicMaterial color="#ffffff" />
+              <meshBasicMaterial color={probeColor} />
           </mesh>
           <mesh position={[0, -0.15, 0]}>
               <cylinderGeometry args={[0.003, 0.003, 0.3]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
+              <meshBasicMaterial color={probeColor} transparent opacity={0.3} />
           </mesh>
-          <Html position={[0.05, 0.05, 0]} center style={{ color: 'white', fontFamily: 'monospace', fontSize: '10px', pointerEvents: 'none', whiteSpace: 'nowrap', textShadow: '0 0 4px black' }}>
+          <Html position={[0.05, 0.05, 0]} center style={{ color: probeColor, fontFamily: 'monospace', fontSize: '10px', pointerEvents: 'none', whiteSpace: 'nowrap', textShadow: isLight ? 'none' : '0 0 4px black' }}>
               TP-09
           </Html>
       </group>
@@ -183,7 +188,7 @@ function TerrainMesh({ currentPassIndex, zExaggeration, layers }: any) {
 /* ── 3D terrain renderer (React Three Fiber) */
 function TerrainCanvas({
   zExaggeration, cutawayElevation, layers, cameraPreset, currentPassIndex,
-  onProbe,
+  onProbe, isLight,
 }: {
   zExaggeration: number;
   cutawayElevation: number;
@@ -191,6 +196,7 @@ function TerrainCanvas({
   cameraPreset: CameraPreset;
   currentPassIndex: number;
   onProbe: (x: number, y: number) => void;
+  isLight?: boolean;
 }) {
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -201,16 +207,16 @@ function TerrainCanvas({
 
   return (
     <div className="w-full h-full relative cursor-crosshair terrain-canvas" onClick={handleClick}>
-      <Canvas>
+      <Canvas style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}>
         <OrthographicCamera makeDefault position={[5, 5, 5]} zoom={200} near={-20} far={50} />
         <CameraController preset={cameraPreset} />
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
         
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 2]} intensity={1.5} />
+        <ambientLight intensity={isLight ? 0.7 : 0.4} />
+        <directionalLight position={[5, 10, 2]} intensity={isLight ? 1.8 : 1.5} />
         <directionalLight position={[-5, 5, -5]} intensity={0.5} />
         
-        <TerrainMesh currentPassIndex={currentPassIndex} zExaggeration={zExaggeration} layers={layers} />
+        <TerrainMesh currentPassIndex={currentPassIndex} zExaggeration={zExaggeration} layers={layers} isLight={isLight} />
       </Canvas>
     </div>
   );
@@ -218,6 +224,8 @@ function TerrainCanvas({
 
 /* ── Main component ─────────────────────────────────────────── */
 export default function TopoCore3D() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const activeNodeId = useStore(s => s.activeNodeId);
   const currentPassIndex = useStore(s => s.currentPassIndex);
   const zAxisExaggeration = useStore(s => s.zAxisExaggeration);
@@ -444,7 +452,7 @@ export default function TopoCore3D() {
         </div>
 
         {/* Terrain canvas */}
-        <div className="flex-1 relative overflow-hidden" style={{ background: '#09090b' }}>
+        <div className="flex-1 relative overflow-hidden" style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}>
           <TerrainCanvas
             zExaggeration={zAxisExaggeration}
             cutawayElevation={cutawayElevation}
@@ -452,17 +460,18 @@ export default function TopoCore3D() {
             cameraPreset={cameraPreset}
             currentPassIndex={currentPassIndex}
             onProbe={handleProbe}
+            isLight={isLight}
           />
 
           {/* Mission footer */}
           <div className="absolute bottom-0 left-0 right-0 px-4 py-2 flex items-center gap-6"
-               style={{ background: 'rgba(9,9,11,0.85)', borderTop: '1px solid var(--border-zinc)' }}>
-            <span className="font-mono text-[9px] text-white/30 uppercase tracking-wider">
+               style={{ background: 'var(--bg-header)', borderTop: '1px solid var(--border-zinc)' }}>
+            <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
               MISSION: NASA-ISRO SAR (NISAR) // QUAD-POL (HH/HV/VH/VV) // POD EPHEMERIS CONFIRMED
             </span>
             <div className="ml-auto flex items-center gap-4">
-              <span className="font-mono text-[9px] text-white/30">AZIMUTH: <span className="text-white/60">1.0 m/px</span></span>
-              <span className="font-mono text-[9px] text-white/30">BAND: <span className="text-white/60">L-BAND 24cm λ</span></span>
+              <span className="font-mono text-[9px] text-[var(--text-muted)]">AZIMUTH: <span className="text-[var(--text-secondary)]">1.0 m/px</span></span>
+              <span className="font-mono text-[9px] text-[var(--text-muted)]">BAND: <span className="text-[var(--text-secondary)]">L-BAND 24cm λ</span></span>
               <span className="panel-label text-right">DATA RIGHTS: TIER-1 OPEN ACCESS</span>
             </div>
           </div>

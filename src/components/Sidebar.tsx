@@ -54,7 +54,7 @@ export default function Sidebar() {
           className="fixed left-4 top-20 bottom-28 z-30 w-[380px] glass-sidebar rounded-2xl overflow-hidden flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
         >
           {/* ── Header ──────────────────────────────────────── */}
-          <div className="p-5 pb-4 border-b border-white/10">
+          <div className="p-5 pb-4 border-b border-[var(--border-zinc)]">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-3xl drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
                 {CATEGORY_ICONS[activeScenario.category]}
@@ -128,7 +128,7 @@ export default function Sidebar() {
                 <span>Timeline Progress</span>
                 <span style={{ color: accentColor }}>{Math.round(progress)}%</span>
               </div>
-              <div className="w-full h-2 rounded-full bg-black/40 overflow-hidden shadow-inner border border-white/5">
+              <div className="w-full h-2 rounded-full bg-[var(--surface-1)] overflow-hidden shadow-inner border border-[var(--border-glass)]">
                 <motion.div
                   className="h-full rounded-full shadow-[0_0_10px_currentColor]"
                   style={{ background: accentColor }}
@@ -156,7 +156,7 @@ export default function Sidebar() {
               <p className="text-xs text-[var(--text-primary)] leading-relaxed font-medium">
                 {activeScenario.educationalContent.body}
               </p>
-              <div className="flex items-start gap-2 pt-3 border-t border-white/10">
+              <div className="flex items-start gap-2 pt-3 border-t border-[var(--border-glass)]">
                 <span className="text-sm mt-0.5 filter drop-shadow-[0_0_4px_rgba(255,171,0,0.8)]">💡</span>
                 <p className="text-xs text-[var(--accent-amber)] font-medium italic leading-relaxed">
                   {activeScenario.educationalContent.funFact}
@@ -206,7 +206,7 @@ export default function Sidebar() {
           </div>
 
           {/* ── Footer: NASA / ISRO branding ─────────────── */}
-          <div className="p-4 border-t border-white/10 flex flex-col gap-1 bg-black/40 backdrop-blur-md">
+          <div className="p-4 border-t border-[var(--border-zinc)] flex flex-col gap-1 bg-[var(--surface-1)] backdrop-blur-md">
             <div className="flex items-center justify-between">
               <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-[0.2em] uppercase">
                 NASA-ISRO SAR Mission

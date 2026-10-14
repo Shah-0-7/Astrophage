@@ -213,7 +213,7 @@ export default function EventRadar2D() {
           {selectedGlobalEvent && (
             <div
               className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-3"
-              style={{ height: 36, background: 'rgba(9,9,11,0.90)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}
+              style={{ height: 36, background: 'var(--bg-header)', borderBottom: '1px solid var(--border-zinc)', backdropFilter: 'blur(16px)' }}
             >
               <span className="font-mono text-[9px] text-white/40 tracking-wider">⊕ LOCATION</span>
               <span className="font-mono text-[11px] text-white/80">
@@ -235,7 +235,7 @@ export default function EventRadar2D() {
 
         {/* Mobile-only: event pills */}
         {globalEvents.length > 0 && (
-          <div className="md:hidden flex-shrink-0 overflow-x-auto" style={{ background: "rgba(9,9,11,0.95)", borderTop: "1px solid rgba(255,255,255,0.07)", padding: "6px 10px" }}>
+          <div className="md:hidden flex-shrink-0 overflow-x-auto" style={{ background: "var(--bg-header)", borderTop: "1px solid var(--border-zinc)", padding: "6px 10px" }}>
             <div className="flex gap-2" style={{ width: "max-content" }}>
               {globalEvents.slice(0, 8).map(evt => {
                 const color = EVT_COLOR[evt.source] ?? "#fff";

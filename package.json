@@ -24,6 +24,7 @@
     "es-toolkit": "^1.39.3",
     "eslint-visitor-keys": "^5.0.1",
     "framer-motion": "^13.4.6",
+    "fuse.js": "^7.5.0",
     "globe.gl": "^2.46.2",
     "ioredis": "^6.0.0",
     "mapbox-gl": "^3.32.0",

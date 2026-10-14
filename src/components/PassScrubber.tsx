@@ -79,10 +79,10 @@ export default function PassScrubber() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40"
+      className="fixed bottom-0 left-0 right-0 z-40 pass-scrubber"
       style={{
-        background: 'rgba(9,9,11,0.96)',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--bg-header)',
+        borderTop: '1px solid var(--border-zinc)',
         backdropFilter: 'blur(20px)',
         padding: '8px 12px 10px',
       }}
@@ -94,20 +94,20 @@ export default function PassScrubber() {
           onClick={togglePlayback}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.92 }}
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer"
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer play-btn"
           style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border-zinc)',
           }}
           title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
         >
           {isPlaying ? (
-            <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" className="text-[var(--text-primary)]">
               <rect x="0" y="0" width="3.5" height="12" rx="0.5" />
               <rect x="6.5" y="0" width="3.5" height="12" rx="0.5" />
             </svg>
           ) : (
-            <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" className="text-[var(--text-primary)]">
               <path d="M1 0.5L9.5 6L1 11.5V0.5Z" />
             </svg>
           )}
@@ -119,7 +119,7 @@ export default function PassScrubber() {
             <button
               key={speed}
               onClick={() => setPlaybackSpeed(speed)}
-              className={`tac-btn text-[9px] h-6 px-2 ${playbackSpeed === speed ? 'active' : ''}`}
+              className={`tac-btn text-[9px] h-6 px-2 speed-btn ${playbackSpeed === speed ? 'active' : ''}`}
             >
               {speed}×
             </button>
@@ -134,12 +134,12 @@ export default function PassScrubber() {
               key={epochDate}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="font-mono text-[12px] font-700 text-white ml-2"
+              className="font-mono text-[12px] font-700 text-[var(--text-primary)] ml-2"
             >
               {epochDate} [{currentPass?.label ?? '—'}]
             </motion.span>
           </div>
-          <span className="hidden md:inline font-mono text-[8px] tracking-wider px-2 py-0.5 rounded border border-white/10 text-emerald-400 bg-emerald-500/10">
+          <span className="hidden md:inline font-mono text-[8px] tracking-wider px-2 py-0.5 rounded border border-[var(--border-zinc)] text-emerald-500 bg-emerald-500/10">
             NISAR 12-DAY REPEAT CYCLE
           </span>
         </div>
@@ -161,12 +161,12 @@ export default function PassScrubber() {
           </motion.p>
         </div>
 
-        <div className="hidden sm:block w-px h-8 bg-white/10" />
+        <div className="hidden sm:block w-px h-8 bg-[var(--border-zinc)]" />
 
         {/* Residual error */}
         <div className="hidden sm:block text-right">
           <p className="panel-label">RESIDUAL</p>
-          <p className="font-mono text-[13px] font-700 text-white/60">
+          <p className="font-mono text-[13px] font-700 text-[var(--text-secondary)]">
             ±{currentPass?.residualError?.toFixed(1) ?? '—'} mm
           </p>
         </div>
@@ -192,10 +192,10 @@ export default function PassScrubber() {
                 }}
               >
                 <div
-                  className="w-[1px] bg-[#ef4444]"
-                  style={{ height: 6, boxShadow: '0 0 6px var(--crimson)' }}
+                  className="w-[1px]"
+                  style={{ height: 6, background: 'var(--crimson)', boxShadow: '0 0 6px var(--crimson)' }}
                 />
-                <span style={{ color: '#ef4444', fontSize: 7, marginTop: 2, letterSpacing: '0.5px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--crimson)', fontSize: 7, marginTop: 2, letterSpacing: '0.5px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
                   {pass.events?.join('/').toUpperCase()}
                 </span>
               </div>
@@ -212,7 +212,7 @@ export default function PassScrubber() {
           style={{ '--progress': `${progress}%` } as React.CSSProperties}
         />
 
-                {/* Pass tick marks */}
+        {/* Pass tick marks */}
         <div className="relative mt-1.5 h-5">
           {PASS_EPOCHS.map((pass, idx) => {
             const left = TOTAL_PASSES > 1 ? (idx / (TOTAL_PASSES - 1)) * 100 : 0;
@@ -233,21 +233,21 @@ export default function PassScrubber() {
                 onClick={() => setCurrentPassIndex(idx)}
               >
                 <div
-                  className="w-[1px]"
+                  className={`w-[1px] pass-tick-bar ${isCurrent ? 'active' : ''}`}
                   style={{
                     height: hasEvents ? 8 : 6,
-                    background: isCurrent ? 'var(--crimson)' : hasEvents ? '#ef4444' : 'var(--white-30)',
+                    background: isCurrent ? 'var(--crimson)' : hasEvents ? 'var(--crimson)' : 'var(--border-zinc)',
                     boxShadow: (isCurrent || hasEvents) ? '0 0 6px var(--crimson)' : undefined,
                   }}
                 />
                 {showLabel && (
                   <span
                     className="hidden sm:flex flex-col items-center font-mono text-[8px] mt-0.5 whitespace-nowrap"
-                    style={{ color: isCurrent ? 'var(--white)' : 'var(--text-muted)' }}
+                    style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-muted)' }}
                   >
                     <span>{pass.date.slice(0, 7)}</span>
                     {hasEvents && (
-                      <span style={{ color: '#ef4444', fontSize: 7, marginTop: 1, letterSpacing: '0.5px' }}>
+                      <span style={{ color: 'var(--crimson)', fontSize: 7, marginTop: 1, letterSpacing: '0.5px' }}>
                         {pass.events?.join('/').toUpperCase()}
                       </span>
                     )}

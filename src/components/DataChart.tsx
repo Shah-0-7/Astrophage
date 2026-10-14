@@ -48,7 +48,7 @@ export default function DataChart({ data, color, unit }: ChartProps) {
 
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="rgba(255,255,255,0.04)"
+          stroke="var(--border-zinc)"
           vertical={false}
         />
 
@@ -74,8 +74,8 @@ export default function DataChart({ data, color, unit }: ChartProps) {
 
         <Tooltip
           contentStyle={{
-            background: 'rgba(18, 18, 26, 0.9)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--bg-glass)',
+            border: '1px solid var(--border-zinc)',
             borderRadius: '8px',
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
