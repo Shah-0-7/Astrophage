@@ -20,6 +20,7 @@ import { useStore } from '@/lib/store';
 import { TARGET_NODES, PASS_EPOCHS, BACKSCATTER_VALUES } from '@/lib/mockData';
 import type { PhaseFilterMode, PolVar, UnifiedFeature } from '@/lib/types';
 import { useSSEStream } from '@/lib/useSSEStream';
+import { filterByPlayback } from '@/lib/playbackFilter';
 
 // Dynamically import the Deck.gl map to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/Map'), {
@@ -67,18 +68,18 @@ export default function EventRadar2D() {
       ...stream.tsunami,
       ...stream.cryosphere,
     ];
-    all.sort((a, b) => {
-      const getTs = (f: UnifiedFeature) => {
-        if (f.source === 'seismic') return new Date((f.properties as any).event_time).getTime();
-        if (f.source === 'volcanism') return new Date((f.properties as any).last_eruption).getTime();
-        if (f.source === 'tsunami') return new Date((f.properties as any).issued_at).getTime();
-        if (f.source === 'cryosphere') return new Date((f.properties as any).date).getTime();
-        return 0;
-      };
-      return getTs(b) - getTs(a);
-    });
-    return all.slice(0, 10);
-  }, [stream]);
+    const getTs = (f: UnifiedFeature) => {
+      if (f.source === 'seismic') return new Date((f.properties as any).event_time).getTime();
+      if (f.source === 'volcanism') return new Date((f.properties as any).last_eruption).getTime();
+      if (f.source === 'tsunami') return new Date((f.properties as any).issued_at).getTime();
+      if (f.source === 'cryosphere') return new Date((f.properties as any).date).getTime();
+      return 0;
+    };
+    all.sort((a, b) => getTs(b) - getTs(a));
+    const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
+    const visible = filterByPlayback(all, getTs, progress);
+    return visible.slice(0, 10);
+  }, [stream, currentPassIndex]);
 
   const [eventsExpanded, setEventsExpanded] = useState(true);
 

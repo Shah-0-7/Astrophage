@@ -19,7 +19,8 @@ import type { MapboxOverlayProps } from '@deck.gl/mapbox';
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { useStore } from '@/lib/store';
 import { useNISARData } from '@/lib/useNISARData';
-import { TARGET_NODES, NODE_BOUNDING_BOXES } from '@/lib/mockData';
+import { TARGET_NODES, NODE_BOUNDING_BOXES, PASS_EPOCHS } from '@/lib/mockData';
+import { filterByPlayback } from '@/lib/playbackFilter';
 import { useEarthquakeData, type USGSEarthquake } from '@/lib/useEarthquakeData';
 import { useSSEStream } from '@/lib/useSSEStream';
 import { buildSeismicHeatmapLayer } from '@/components/map-layers/SeismicHeatmapLayer';
@@ -230,6 +231,15 @@ export default function MapComponent() {
     const epochFactor = currentPassIndex / 17;
     const threatRadius = 10000 + epochFactor * 14000;
 
+    // Playback cutoff: map scrubber progress onto each feed's actual time span
+    const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
+    const visibleQuakes = filterByPlayback(earthquakes, q => q.time, progress);
+    const visibleSeismic = filterByPlayback(
+      stream.seismic,
+      f => new Date((f.properties as any).event_time).getTime(),
+      progress,
+    );
+
     return [
       // ── PB2002 tectonic plate boundary fault lines ──────────
       ...(faultLines ? [new GeoJsonLayer({
@@ -247,11 +257,11 @@ export default function MapComponent() {
       // ── Phase 3: Seismic density heatmap (global zoom only) ───
       ...(buildSeismicHeatmapLayer({
         // Pass aboveHeatmapZoom so no zoom-dep needed in useMemo
-        features: stream.seismic.slice(0, 300),
+        features: visibleSeismic.slice(0, 300),
         visible:  layerConfig.seismicHeatmap && !aboveHeatmapZoom,
         zoom:     aboveHeatmapZoom ? 99 : 0, // force show/hide
       }) ? [buildSeismicHeatmapLayer({
-        features: stream.seismic.slice(0, 300),
+        features: visibleSeismic.slice(0, 300),
         visible:  layerConfig.seismicHeatmap && !aboveHeatmapZoom,
         zoom:     aboveHeatmapZoom ? 99 : 0,
       })!] : []),
@@ -264,7 +274,7 @@ export default function MapComponent() {
 
       // ── Phase 3: Temporal decay rings (epoch-bound) ─────────
       ...buildTemporalDecayLayers({
-        features:  stream.seismic.slice(0, 80), // cap for perf
+        features:  visibleSeismic.slice(0, 80), // cap for perf
         passIndex: currentPassIndex,
         visible:   layerConfig.temporalDecay,
       }),
@@ -330,7 +340,7 @@ export default function MapComponent() {
       // ── USGS live earthquake scatter dots ───────────────────
       new ScatterplotLayer<USGSEarthquake>({
         id: 'usgs-earthquakes',
-        data: earthquakes,
+        data: visibleQuakes,
         getPosition: (d) => d.coords,
         getRadius:   (d) => magToRadius(d.magnitude),
         getFillColor:(d) => magToColor(d.magnitude),
@@ -364,7 +374,7 @@ export default function MapComponent() {
             });
           }
         },
-        updateTriggers: { getRadius: earthquakes.length, getFillColor: earthquakes.length },
+        updateTriggers: { getRadius: visibleQuakes.length, getFillColor: visibleQuakes.length },
       }),
 
       // ── Active node threat rings ─────────────────────────────
