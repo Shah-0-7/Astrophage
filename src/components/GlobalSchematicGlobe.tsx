@@ -28,7 +28,8 @@ import {
   useCallback, useEffect, useMemo, useRef, useState, Suspense, memo,
 } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Sphere, Line } from '@react-three/drei';
+import { OrbitControls, Sphere, Line, Stars, Billboard } from '@react-three/drei';
+import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 // (useStore not needed here – globe uses local selectedEvent state)
@@ -141,8 +142,11 @@ const TYPE_CONFIG: Record<EventType, TypeConfig> = {
 
 // ── Shared helpers ────────────────────────────────────────────
 function latLonToVec3(lat: number, lon: number, radius: number): THREE.Vector3 {
-  const phi   = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
+  // Guard against NaN/string values that could crash Three.js math
+  const safeLat = isFinite(lat) ? Math.max(-90,  Math.min(90,  lat)) : 0;
+  const safeLon = isFinite(lon) ? Math.max(-180, Math.min(180, lon)) : 0;
+  const phi   = (90 - safeLat) * (Math.PI / 180);
+  const theta = (safeLon + 180) * (Math.PI / 180);
   return new THREE.Vector3(
     -radius * Math.sin(phi) * Math.cos(theta),
      radius * Math.cos(phi),
@@ -151,7 +155,8 @@ function latLonToVec3(lat: number, lon: number, radius: number): THREE.Vector3 {
 }
 
 function markerSize(ev: GlobalEvent): number {
-  return Math.max(0.008, Math.min(0.04, 0.008 + (ev.magnitude ?? 0) * 0.004));
+  const mag = isFinite(Number(ev.magnitude)) ? Number(ev.magnitude) : 0;
+  return Math.max(0.008, Math.min(0.04, 0.008 + mag * 0.004));
 }
 
 function isRecent(ev: GlobalEvent): boolean {
@@ -276,7 +281,6 @@ const GraticuleLines = memo(function GraticuleLines({ isLight }: { isLight?: boo
   );
 });
 
-// ── EventMarker ───────────────────────────────────────────────
 function EventMarker({
   event, isSelected, onClick, elevationOffset,
 }: {
@@ -304,37 +308,56 @@ function EventMarker({
 
   return (
     <group position={pos}>
+      {/* Animated pulse ring – smooth ring geometry, only for recent events */}
       {recent && (
-        <mesh ref={pulseRef}>
-          <sphereGeometry args={[size * 2.5, 8, 8]} />
-          <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} />
-        </mesh>
+        <Billboard>
+          <mesh ref={pulseRef}>
+            {/* ringGeometry(innerR, outerR, segments) – always a perfect circle */}
+            <ringGeometry args={[size * 1.7, size * 2.6, 48]} />
+            <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} />
+          </mesh>
+        </Billboard>
       )}
-      <mesh
-        onClick={(e) => { e.stopPropagation(); onClick(event, e); }}
-        onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
-        onPointerOut={() => { document.body.style.cursor = 'auto'; }}
-      >
-        <sphereGeometry args={[size, 10, 10]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={isSelected ? 2.5 : (recent ? 1.4 : 0.8)}
-          roughness={0.2}
-          metalness={0.1}
-        />
-      </mesh>
-      {isSelected && (
+
+      {/* Soft additive glow halo – makes marker visible against any terrain */}
+      <Billboard>
         <mesh>
-          <sphereGeometry args={[size * 3, 12, 12]} />
+          <circleGeometry args={[size * 2.0, 48]} />
           <meshBasicMaterial
             color={color}
             transparent
-            opacity={0.25}
-            side={THREE.BackSide}
+            opacity={isSelected ? 0.35 : (recent ? 0.20 : 0.08)}
+            blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
         </mesh>
+      </Billboard>
+
+      {/* Main marker dot – always circular billboard */}
+      <Billboard>
+        <mesh
+          onClick={(e) => { e.stopPropagation(); onClick(event, e); }}
+          onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+        >
+          <circleGeometry args={[size, 48]} />
+          <meshBasicMaterial color={color} />
+        </mesh>
+      </Billboard>
+
+      {/* Selection ring */}
+      {isSelected && (
+        <Billboard>
+          <mesh>
+            <ringGeometry args={[size * 1.9, size * 3.2, 64]} />
+            <meshBasicMaterial
+              color={color}
+              transparent
+              opacity={0.75}
+              depthWrite={false}
+            />
+          </mesh>
+        </Billboard>
       )}
     </group>
   );
@@ -515,17 +538,32 @@ function useTiledGlobeTexture(
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           if (!ctxRef.current || !canvasRef.current) return;
-          // Map tile position to canvas pixel coords
-          const pxPerTileX = CANVAS_W / tilesX;
-          const pxPerTileY = CANVAS_H / tilesY;
-          const cx = tx * pxPerTileX;
-          const cy = ty * pxPerTileY;
-          ctxRef.current.drawImage(img, cx, cy, pxPerTileX, pxPerTileY);
-          // Directly mutate needsUpdate on the texture ref (no state update needed)
-          if (canvasRef.current) {
-            const canvasTex = (canvasRef.current as HTMLCanvasElement & { __tex?: THREE.CanvasTexture }).__tex;
-            if (canvasTex) canvasTex.needsUpdate = true;
-          }
+
+          // Derive the tile's geographic extent and map directly to canvas pixels.
+          // Using geo-coords (not tile indices) ensures cross-zoom alignment:
+          // both z=2 and z=3 tiles use the same lon/lat → pixel formula so they
+          // always land at the correct position regardless of non-integer tile widths.
+          const { degPerTileX, degPerTileY } = gibs500mGrid(safeZ);
+          const lonStart = -180 + tx * degPerTileX;
+          const latStart =   90 - ty * degPerTileY; // lat decreases top→bottom
+          const lonEnd   = lonStart + degPerTileX;
+          const latEnd   = latStart - degPerTileY;
+
+          // Round start/end independently so adjacent tiles are always contiguous
+          const x0 = Math.round((lonStart + 180) / 360 * CANVAS_W);
+          const y0 = Math.round((90 - latStart)  / 180 * CANVAS_H);
+          const x1 = Math.round((lonEnd   + 180) / 360 * CANVAS_W);
+          const y1 = Math.round((90 - latEnd)    / 180 * CANVAS_H);
+          const tw = Math.max(1, x1 - x0);
+          const th = Math.max(1, y1 - y0);
+
+          ctxRef.current.imageSmoothingEnabled = true;
+          ctxRef.current.imageSmoothingQuality = 'high';
+          ctxRef.current.drawImage(img, x0, y0, tw, th);
+
+          // Signal Three.js to re-upload the texture
+          const canvasTex = (canvasRef.current as HTMLCanvasElement & { __tex?: THREE.CanvasTexture }).__tex;
+          if (canvasTex) canvasTex.needsUpdate = true;
         };
         img.src = url;
       }
@@ -542,11 +580,6 @@ function useTiledGlobeTexture(
   return { tex, loadTiles: enabled ? loadTiles : null };
 }
 
-// ── TileTextureUpdater (inside Canvas) ────────────────────────
-/**
- * Watches camera distance each frame; when zoom level changes,
- * triggers a tile load for the current view frustum centre.
- */
 function TileTextureUpdater({
   enabled, loadTiles,
 }: {
@@ -555,18 +588,31 @@ function TileTextureUpdater({
 }) {
   const { camera } = useThree();
   const lastZRef   = useRef(-1);
+  const lastLatRef = useRef(0);
+  const lastLonRef = useRef(0);
 
   useFrame(() => {
     if (!enabled || !loadTiles) return;
     const dist = camera.position.length();
     const z    = distanceToZoom(dist);
-    if (z === lastZRef.current) return;
-    lastZRef.current = z;
 
-    // Convert camera direction to lat/lon for tile-centre selection
+    // Convert camera direction to lat/lon
     const dir = camera.position.clone().negate().normalize();
     const lat = Math.asin(dir.y) * (180 / Math.PI);
     const lon = Math.atan2(dir.z, -dir.x) * (180 / Math.PI);
+
+    const zChanged   = z !== lastZRef.current;
+    // Trigger on pan only when we've moved far enough to enter new tiles (~15°)
+    const PAN_THRESH = 15;
+    const panMoved   =
+      Math.abs(lat - lastLatRef.current) > PAN_THRESH ||
+      Math.abs(lon - lastLonRef.current) > PAN_THRESH;
+
+    if (!zChanged && !panMoved) return;
+
+    lastZRef.current   = z;
+    lastLatRef.current = lat;
+    lastLonRef.current = lon;
     loadTiles(lat, lon, z);
   });
 
@@ -671,29 +717,18 @@ function GlobeMesh({
   );
 }
 
-// ── AutoRotate ────────────────────────────────────────────────
-function AutoRotate({
-  isInteracting,
+// ── FlyToTarget ───────────────────────────────────────────────
+// Handles flying the camera to a lat/lon target without
+// conflicting with OrbitControls (which manages auto-rotation natively).
+function FlyToTarget({
   flyTo,
+  controlsRef,
 }: {
-  isInteracting: boolean;
   flyTo: [number, number] | null;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
 }) {
   const { camera } = useThree();
-  const speedRef  = useRef(0);
   const lastFlyTo = useRef<[number, number] | null>(null);
-
-  useFrame(() => {
-    speedRef.current = THREE.MathUtils.lerp(
-      speedRef.current,
-      isInteracting ? 0 : 0.0015,
-      isInteracting ? 0.1 : 0.02,
-    );
-    if (speedRef.current > 0.0001) {
-      camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), speedRef.current);
-      camera.lookAt(0, 0, 0);
-    }
-  });
 
   useEffect(() => {
     if (!flyTo || flyTo === lastFlyTo.current) return;
@@ -701,7 +736,11 @@ function AutoRotate({
     const target = latLonToVec3(flyTo[0], flyTo[1], GLOBE_RADIUS);
     camera.position.copy(target.clone().normalize().multiplyScalar(GLOBE_RADIUS * 2.2));
     camera.lookAt(0, 0, 0);
-  }, [flyTo, camera]);
+    // Sync OrbitControls internal state so zoom/pan remain coherent
+    if (controlsRef.current) {
+      controlsRef.current.update();
+    }
+  }, [flyTo, camera, controlsRef]);
 
   return null;
 }
@@ -732,8 +771,9 @@ function GlobeScene({
   isLight,
 }: SceneProps) {
   const [isInteracting, setIsInteracting] = useState(false);
-  const idleTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const elevOffset = MARKER_ELEV[viewMode];
+  const idleTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlsRef  = useRef<OrbitControlsImpl | null>(null);
+  const elevOffset   = MARKER_ELEV[viewMode];
 
   const handleInteract = useCallback(() => {
     setIsInteracting(true);
@@ -743,6 +783,19 @@ function GlobeScene({
 
   return (
     <>
+      {/* ── Starfield background ── */}
+      {!isLight && (
+        <Stars
+          radius={100}
+          depth={50}
+          count={5000}
+          factor={4}
+          saturation={0}
+          fade
+          speed={0.3}
+        />
+      )}
+
       {/* ── Lighting ── */}
       {/* SATELLITE uses meshBasicMaterial so lights don't affect it.
           TERRAIN/WIRES use PBR so we need generous light. */}
@@ -793,18 +846,27 @@ function GlobeScene({
         />
       ))}
 
+      {/* OrbitControls with native autoRotate to avoid camera state conflicts */}
       <OrbitControls
+        ref={controlsRef}
         enablePan={false}
         minDistance={GLOBE_RADIUS * 1.3}
         maxDistance={GLOBE_RADIUS * 6}
+        // Prevent camera from orbiting under the globe (south pole flip)
+        // 0.1 = can't flip over north pole, 0.88*PI ≈ 158° = good southern coverage without going underneath
+        minPolarAngle={Math.PI * 0.05}
+        maxPolarAngle={Math.PI * 0.88}
+        autoRotate={!isInteracting}
+        autoRotateSpeed={0.5}
         onStart={handleInteract}
         onChange={handleInteract}
         dampingFactor={0.08}
         enableDamping
         rotateSpeed={0.5}
+        zoomSpeed={0.7}
       />
 
-      <AutoRotate isInteracting={isInteracting} flyTo={flyTo} />
+      <FlyToTarget flyTo={flyTo} controlsRef={controlsRef} />
     </>
   );
 }
@@ -894,25 +956,33 @@ function EventPanel({
             <p className="panel-label mb-1">MAGNITUDE</p>
             <p className="font-mono text-[22px] font-700 leading-none"
                style={{ color: event.magnitude ? cfg.color : 'var(--text-muted)' }}>
-              {event.magnitude?.toFixed(1) ?? '—'}
+              {event.magnitude != null && isFinite(Number(event.magnitude))
+                ? Number(event.magnitude).toFixed(1)
+                : '—'}
             </p>
           </div>
           <div>
             <p className="panel-label mb-1">DEPTH (km)</p>
             <p className="font-mono text-[22px] font-700 text-[var(--text-primary)] leading-none">
-              {event.depth?.toFixed(0) ?? '—'}
+              {event.depth != null && isFinite(Number(event.depth))
+                ? Number(event.depth).toFixed(0)
+                : '—'}
             </p>
           </div>
           <div>
             <p className="panel-label mb-1">LATITUDE</p>
             <p className="font-mono text-[13px] font-600 text-[var(--text-secondary)]">
-              {event.lat.toFixed(3)}°{event.lat >= 0 ? 'N' : 'S'}
+              {isFinite(Number(event.lat))
+                ? `${Number(event.lat).toFixed(3)}°${Number(event.lat) >= 0 ? 'N' : 'S'}`
+                : '—'}
             </p>
           </div>
           <div>
             <p className="panel-label mb-1">LONGITUDE</p>
             <p className="font-mono text-[13px] font-600 text-[var(--text-secondary)]">
-              {Math.abs(event.lon).toFixed(3)}°{event.lon >= 0 ? 'E' : 'W'}
+              {isFinite(Number(event.lon))
+                ? `${Math.abs(Number(event.lon)).toFixed(3)}°${Number(event.lon) >= 0 ? 'E' : 'W'}`
+                : '—'}
             </p>
           </div>
         </div>
@@ -1392,7 +1462,10 @@ export default function GlobalSchematicGlobe() {
   }, [selectedEvent]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}>
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: isLight ? 'var(--bg-primary)' : 'radial-gradient(ellipse at center, #0a0f1e 0%, #040810 60%, #020408 100%)' }}
+    >
       {/* Radar scan overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-[51] opacity-20">
         <div className="radar-scan-line w-full h-[200%]" />
@@ -1404,7 +1477,7 @@ export default function GlobalSchematicGlobe() {
       ) : (
         <Canvas
           camera={{ position: [0, 0, GLOBE_RADIUS * 2.5], fov: 45 }}
-          style={{ background: isLight ? 'var(--bg-primary)' : '#09090b' }}
+          style={{ background: isLight ? 'var(--bg-primary)' : '#030609' }}
           gl={{ antialias: true, alpha: false }}
           dpr={[1, 2]}
         >

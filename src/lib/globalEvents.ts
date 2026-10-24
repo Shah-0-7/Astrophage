@@ -72,7 +72,7 @@ const CACHE_TTL_MS: Record<string, number> = {
 
 function cacheGet<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(`gs_cache_${key}`);
+    const raw = localStorage.getItem(`gs_cache_v2_${key}`);
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw) as { data: T; ts: number };
     const ttl = CACHE_TTL_MS[key] ?? 300_000;
@@ -83,7 +83,7 @@ function cacheGet<T>(key: string): T | null {
 
 function cacheSet<T>(key: string, data: T) {
   try {
-    localStorage.setItem(`gs_cache_${key}`, JSON.stringify({ data, ts: Date.now() }));
+    localStorage.setItem(`gs_cache_v2_${key}`, JSON.stringify({ data, ts: Date.now() }));
   } catch { /* quota exceeded – ignore */ }
 }
 
@@ -132,6 +132,38 @@ function deduplicateEvents(events: GlobalEvent[]): GlobalEvent[] {
   return Array.from(dedupedMap.values());
 }
 
+// ── Event sanitizer ────────────────────────────────────────────────
+// Coerces numeric fields from strings/nulls and drops events with
+// missing or out-of-range coordinates so bad API data never crashes
+// the globe renderer.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeEvent(ev: any): GlobalEvent | null {
+  const lat = Number(ev.lat);
+  const lon = Number(ev.lon);
+  // Drop events without valid coordinates
+  if (!isFinite(lat) || !isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+
+  const time      = Number(ev.time);
+  const magnitude = ev.magnitude != null ? Number(ev.magnitude) : null;
+  const depth     = ev.depth     != null ? Number(ev.depth)     : null;
+
+  return {
+    ...ev,
+    lat,
+    lon,
+    time:      isFinite(time)      ? time      : Date.now(),
+    magnitude: magnitude != null && isFinite(magnitude) ? magnitude : null,
+    depth:     depth     != null && isFinite(depth)     ? depth     : null,
+  } as GlobalEvent;
+}
+
+function sanitizeEvents(evs: GlobalEvent[]): GlobalEvent[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (evs as any[]).map(sanitizeEvent).filter((e): e is GlobalEvent => e !== null);
+}
+
 // ── USGS fetcher ──────────────────────────────────────────────
 
 async function fetchUSGS(): Promise<GlobalEvent[]> {
@@ -170,7 +202,7 @@ async function fetchUSGS(): Promise<GlobalEvent[]> {
     });
 
     cacheSet('usgs', events);
-    return events;
+    return sanitizeEvents(events);
   } catch (err) {
     clearTimeout(timer);
     throw err;
@@ -228,7 +260,7 @@ async function fetchEONET(): Promise<GlobalEvent[]> {
   }
 
   cacheSet('eonet', events);
-  return events;
+  return sanitizeEvents(events);
 }
 
 // ── GVP / Smithsonian fetcher (via our proxy) ─────────────────
@@ -261,7 +293,7 @@ async function fetchGVP(): Promise<GlobalEvent[]> {
   }));
 
   cacheSet('gvp', events);
-  return events;
+  return sanitizeEvents(events);
 }
 
 // ── NASA COOLR static snapshot fetcher ───────────────────────
@@ -294,7 +326,7 @@ async function fetchCOOLR(): Promise<GlobalEvent[]> {
   }));
 
   cacheSet('coolr', events);
-  return events;
+  return sanitizeEvents(events);
 }
 
 // ── HiQuake static snapshot fetcher ──────────────────────────
@@ -327,7 +359,7 @@ async function fetchHiQuake(): Promise<GlobalEvent[]> {
   }));
 
   cacheSet('hiquake', events);
-  return events;
+  return sanitizeEvents(events);
 }
 
 // ── Master fetch function ────────────────────────────────────
