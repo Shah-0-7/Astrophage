@@ -1,103 +1,58 @@
-"use client";
+﻿import { EarthBlaze } from '@/components/ui/earth-blaze';
+import { OutlineWordmark } from '@/components/ui/outline-wordmark';
+import Link from 'next/link';
 
-/**
- * ============================================================
- * NISAR SAR/InSAR Geospatial Telemetry Platform
- * ============================================================
- * Main application page. Assembles the tri-mode view router
- * with persistent TelemetryHeader and PassScrubber.
- *
- * View routing:
- *   EVENT_RADAR_2D    → EventRadar2D  (default)
- *   TOPO_CORE_3D      → TopoCore3D
- *
- * Spatial context (active node, coords, epoch, band) persists
- * across all view switches via the centralized Zustand store.
- * ============================================================
- */
-
-import dynamic from 'next/dynamic';
-import TelemetryHeader from '@/components/TelemetryHeader';
-import PassScrubber from '@/components/PassScrubber';
-import { useStore } from '@/lib/store';
-
-const EventRadar2D = dynamic(() => import('@/components/EventRadar2D'), {
-  ssr: false,
-  loading: () => <ViewLoader label="CALIBRATING RADAR ARRAY..." />,
-});
-
-const TopoCore3D = dynamic(() => import('@/components/TopoCore3D'), {
-  ssr: false,
-  loading: () => <ViewLoader label="INITIALIZING MORPHOMETRIC ENGINE..." />,
-});
-
-const GlobalSchematicGlobe = dynamic(() => import('@/components/GlobalSchematicGlobe'), {
-  ssr: false,
-  loading: () => <ViewLoader label="INITIALIZING GLOBAL SCHEMATIC..." />,
-});
-
-function ViewLoader({ label }: { label: string }) {
+export default function HeroPage() {
   return (
-    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
-      <div className="flex flex-col items-center gap-4">
-        <div
-          className="w-8 h-8 rounded-full border-2 border-t-transparent spin"
-          style={{ borderColor: 'var(--border-zinc)', borderTopColor: 'var(--crimson)' }}
-        />
-        <p className="font-mono text-[10px] tracking-[0.2em] uppercase"
-           style={{ color: 'var(--text-muted)' }}>
-          {label}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ViewRouter() {
-  const viewMode = useStore(s => s.viewMode);
-
-  return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-      {/* Radar scan line overlay */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-50 opacity-30">
-        <div className="radar-scan-line w-full h-[200%]" />
-      </div>
-
-      {/* View panels */}
-      {viewMode === 'EVENT_RADAR_2D'   && <EventRadar2D />}
-      {viewMode === 'TOPO_CORE_3D'     && <TopoCore3D />}
-      {viewMode === 'GLOBAL_SCHEMATIC' && <GlobalSchematicGlobe />}
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <main
-      className="w-screen h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)', position: 'relative' }}
-    >
-      {/* ── Persistent telemetry header (42px fixed top) ───────── */}
-      <TelemetryHeader />
-
-      {/* ── Main content area fills between header and scrubber ── */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 42,
-          left: 0,
-          right: 0,
-          bottom: 94,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+    <main className="relative min-h-[560px] h-dvh bg-black text-zinc-100">
+      <EarthBlaze
+        className="!absolute inset-0"
+        style={{ position: 'absolute', inset: 0, height: '100%', aspectRatio: 'auto' }}
+        starCount={2200}
+        illumination={1.1}
       >
-        <ViewRouter />
-      </div>
+        <div className="relative flex h-full flex-col justify-between p-6 sm:p-10">
+          <header className="pointer-events-auto flex items-center justify-between">
+            <span
+              className="text-sm font-semibold tracking-[0.18em] uppercase"
+              style={{ fontFamily: 'var(--font-display, "Arial Black", system-ui)' }}
+            >
+              ASTROPHAGE
+            </span>
+            <nav className="flex items-center gap-6 text-sm text-zinc-400">
+              <Link href="/app" className="transition-colors hover:text-white">Platform</Link>
+              <Link href="/events" className="transition-colors hover:text-white">Events</Link>
+              <a href="https://github.com/Shah-0-7/Astrophage" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub ↗</a>
+            </nav>
+          </header>
 
-      {/* ── Persistent pass scrubber (fixed bottom ~94px) ──────── */}
-      <PassScrubber />
+          <div className="pointer-events-none absolute inset-0 grid place-items-center px-4">
+            <div className="flex flex-col items-center gap-6">
+              <OutlineWordmark
+                text="ASTROPHAGE"
+                style={{
+                  fontFamily: 'var(--font-display, "Arial Black", system-ui, sans-serif)',
+                  fontWeight: 700,
+                  fontSize: 'clamp(1.75rem, 7.6vw, 7.5rem)',
+                  letterSpacing: '0.04em',
+                }}
+              />
+              <p className="text-center text-zinc-400 text-sm sm:text-base tracking-widest uppercase" style={{ maxWidth: '38ch', lineHeight: 1.8 }}>
+                Real-time geospatial telemetry · SAR/InSAR analysis · Global event monitoring
+              </p>
+            </div>
+          </div>
+
+          <footer className="pointer-events-auto relative flex flex-wrap items-center justify-between gap-4">
+            <Link href="/app" className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95">
+              Launch Platform →
+            </Link>
+            <a href="https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography/" target="_blank" rel="noreferrer" className="border-b border-zinc-700 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300">
+              Earth imagery: NASA Blue Marble ↗
+            </a>
+          </footer>
+        </div>
+      </EarthBlaze>
     </main>
   );
 }

@@ -3,8 +3,8 @@ import './globals.css';
 import { ThemeProvider } from '@/lib/ThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'NISAR SAR/InSAR Geospatial Telemetry Platform',
-  description: 'Aerospace tactical platform for SAR/InSAR geospatial telemetry, phase processing, and 3D morphometric analysis using NASA-ISRO NISAR mission data.',
+  title: 'Astrophage — Geospatial Telemetry Platform',
+  description: 'Real-time geospatial telemetry, SAR/InSAR analysis, and global event monitoring using NASA-ISRO NISAR mission data.',
 };
 
 export default function RootLayout({
@@ -38,9 +38,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@300;400;500;600;700&family=Unbounded:wght@400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
+        <style>{`
+          :root { --font-display: 'Unbounded'; }
+        `}</style>
         {/* Mapbox GL CSS */}
         <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
       </head>
