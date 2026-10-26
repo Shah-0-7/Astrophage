@@ -41,6 +41,8 @@ import {
 } from '@/lib/useGlobalEvents';
 import type { SourceHealth } from '@/lib/globalEvents';
 import { useTheme } from '@/lib/ThemeProvider';
+import { WireGlobe, useWorldGeo } from '@/components/WireGlobe';
+import { getTerraceTextures, loadWorldGeo, paintBasemap } from '@/lib/worldGeo';
 
 // ── Globe view mode ───────────────────────────────────────────
 export type GlobeViewMode = 'WIRES' | 'TERRAIN' | 'SATELLITE';
@@ -211,8 +213,8 @@ function useGlobeTextures(mode: GlobeViewMode): { textures: TexBundle; loading: 
     let p: Promise<TexBundle>;
 
     if (mode === 'WIRES') {
-      // Ghost overlay only – load city-lights texture for continent silhouettes
-      p = loadTex(CDN_NIGHT).then(emit => ({ color: null, bump: null, disp: null, emit }));
+      // Drawn entirely from bundled geometry (WireGlobe) – no remote textures
+      p = Promise.resolve(EMPTY_BUNDLE);
 
     } else if (mode === 'SATELLITE') {
       p = Promise.all([
@@ -262,8 +264,8 @@ const GraticuleLines = memo(function GraticuleLines({ isLight }: { isLight?: boo
     return result;
   }, []);
 
-  const mainColor = isLight ? '#A68763' : '#22d3ee';
-  const subColor  = isLight ? '#DCD7CE' : '#083d52';
+  const mainColor = isLight ? '#A68763' : '#b9c9dc';
+  const subColor  = isLight ? '#DCD7CE' : '#7d8ea3';
 
   return (
     <>
@@ -272,9 +274,9 @@ const GraticuleLines = memo(function GraticuleLines({ isLight }: { isLight?: boo
           key={i}
           points={l.pts}
           color={l.main ? mainColor : subColor}
-          lineWidth={l.main ? 0.9 : 0.3}
+          lineWidth={l.main ? 0.7 : 0.3}
           transparent
-          opacity={l.main ? 0.95 : 0.45}
+          opacity={l.main ? 0.4 : 0.15}
         />
       ))}
     </>
@@ -481,7 +483,7 @@ function useTiledGlobeTexture(
     canvas.width  = CANVAS_W;
     canvas.height = CANVAS_H;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#05304a'; // deep-ocean fallback colour
+    ctx.fillStyle = '#05304a'; // deep-ocean colour until the bundled basemap is ready
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     canvasRef.current = canvas;
     ctxRef.current    = ctx;
@@ -490,7 +492,16 @@ function useTiledGlobeTexture(
     applyTexProps(newTex);
     setTex(newTex);
 
+    // Bundled basemap underneath: if NASA imagery is slow or unreachable the globe still shows geography.
+    let alive = true;
+    loadWorldGeo().then(geo => {
+      if (!alive || baseReady.current) return;
+      paintBasemap(ctx, geo, CANVAS_W, CANVAS_H);
+      newTex.needsUpdate = true;
+    }).catch(() => { /* keep the flat colour */ });
+
     return () => {
+      alive = false;
       newTex.dispose();
       setTex(null);
       canvasRef.current = null;
@@ -637,9 +648,14 @@ function GlobeMesh({
 
   const dispScale = mode === 'TERRAIN' ? DISP_PER_SCALE * reliefScale : 0;
   const atmoColor = mode === 'WIRES'
-    ? (isLight ? '#E5E2DA' : '#0a2540')
+    ? '#8fb8ff'
     : (isLight ? '#B8A489' : '#1a6fff');
-  const atmoOpacity = mode === 'WIRES' ? 0.10 : 0.07;
+  const atmoOpacity = mode === 'WIRES' ? 0.05 : 0.07;
+  const worldGeo = useWorldGeo();
+  const terraceFallback = useMemo(
+    () => (mode === 'TERRAIN' && worldGeo ? getTerraceTextures(worldGeo) : null),
+    [mode, worldGeo],
+  );
 
   // For SATELLITE mode: prefer the progressively-tiled CanvasTexture;
   // fall back to base WMS texture if tiled system isn't ready yet.
@@ -648,35 +664,31 @@ function GlobeMesh({
   return (
     <>
       {/* ── Main globe sphere ── */}
-      <Sphere args={[GLOBE_RADIUS, segs, segs]}>
-        {mode === 'WIRES' ? (
-          // Holographic dark sphere – emissive keeps it visible
-          <meshStandardMaterial
-            color={isLight ? '#E5E2DA' : '#081828'}
-            emissive={isLight ? '#DCD7CE' : '#0d2d4a'}
-            emissiveIntensity={isLight ? 0.35 : 0.6}
-            roughness={0.7}
-          />
-        ) : mode === 'SATELLITE' ? (
-          // meshBasicMaterial → colour is NEVER dimmed by scene lights;
-          // the texture is shown at 100 % of its original colours.
-          // City lights are composited as an additive emissive overlay.
-          <meshBasicMaterial
-            map={satMap}
-          />
-        ) : (
-          /* TERRAIN – PBR so shading shows relief */
-          <meshStandardMaterial
-            map={textures.color ?? undefined}
-            bumpMap={textures.bump ?? undefined}
-            bumpScale={0.06}
-            displacementMap={textures.disp ?? undefined}
-            displacementScale={dispScale}
-            roughness={0.65}
-            metalness={0.0}
-          />
-        )}
-      </Sphere>
+      {mode === 'WIRES' ? (
+        // Terraced land, glowing borders, land network, limb glow, satellite – all bundled geometry
+        <WireGlobe radius={GLOBE_RADIUS} />
+      ) : (
+        <Sphere args={[GLOBE_RADIUS, segs, segs]}>
+          {mode === 'SATELLITE' ? (
+            // meshBasicMaterial → colour is NEVER dimmed by scene lights;
+            // the texture is shown at 100 % of its original colours.
+            // City lights are composited as an additive emissive overlay.
+            <meshBasicMaterial map={satMap} />
+          ) : (
+            /* TERRAIN – PBR so shading shows relief. Falls back to bundled terraces if imagery is unreachable. */
+            <meshStandardMaterial
+              key={`${textures.color ? 'img' : 'x'}-${terraceFallback ? 'fb' : 'x'}`}
+              map={textures.color ?? terraceFallback?.color ?? undefined}
+              bumpMap={textures.bump ?? terraceFallback?.bump ?? undefined}
+              bumpScale={textures.bump ? 0.06 : 2.2}
+              displacementMap={textures.disp ?? undefined}
+              displacementScale={dispScale}
+              roughness={0.65}
+              metalness={0.0}
+            />
+          )}
+        </Sphere>
+      )}
 
       {/* ── Satellite city-lights emissive overlay ── */}
       {mode === 'SATELLITE' && showCityLights && textures.emit && (
@@ -686,18 +698,6 @@ function GlobeMesh({
             transparent
             opacity={0.5}
             blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </Sphere>
-      )}
-
-      {/* ── WIRES: ghost continent silhouette at low opacity ── */}
-      {mode === 'WIRES' && textures.emit && (
-        <Sphere args={[GLOBE_RADIUS + 0.001, 64, 64]}>
-          <meshBasicMaterial
-            map={textures.emit}
-            transparent
-            opacity={0.18}
             depthWrite={false}
           />
         </Sphere>
@@ -799,17 +799,25 @@ function GlobeScene({
       {/* ── Lighting ── */}
       {/* SATELLITE uses meshBasicMaterial so lights don't affect it.
           TERRAIN/WIRES use PBR so we need generous light. */}
-      <ambientLight intensity={viewMode === 'TERRAIN' ? 1.8 : 1.4} />
-      <directionalLight
-        position={[5, 3, 5]}
-        intensity={viewMode === 'TERRAIN' ? 3.0 : 2.4}
-        color="#ffffff"
-      />
-      {/* Soft fill from opposite side to lift shadow regions */}
-      <directionalLight position={[-4, -2, -4]} intensity={0.8} color="#c8d8ff" />
-      <directionalLight position={[0, 5, -5]} intensity={0.5} color="#ffffff" />
-      {viewMode === 'WIRES' && (
-        <directionalLight position={[0, 0, -6]} intensity={0.5} color={isLight ? '#A68763' : '#22d3ee'} />
+      {viewMode === 'WIRES' ? (
+        <>
+          {/* low ambient + one raking light so the terrace lips catch highlights */}
+          <ambientLight intensity={0.55} />
+          <directionalLight position={[-4, 5, 6]} intensity={2.6} color="#ffffff" />
+          <directionalLight position={[5, -2, 3]} intensity={0.5} color="#9db8e8" />
+        </>
+      ) : (
+        <>
+          <ambientLight intensity={viewMode === 'TERRAIN' ? 1.8 : 1.4} />
+          <directionalLight
+            position={[5, 3, 5]}
+            intensity={viewMode === 'TERRAIN' ? 3.0 : 2.4}
+            color="#ffffff"
+          />
+          {/* Soft fill from opposite side to lift shadow regions */}
+          <directionalLight position={[-4, -2, -4]} intensity={0.8} color="#c8d8ff" />
+          <directionalLight position={[0, 5, -5]} intensity={0.5} color="#ffffff" />
+        </>
       )}
 
       {/* ── Globe sphere ── */}
@@ -1484,7 +1492,7 @@ export default function GlobalSchematicGlobe({ focusId = null }: { focusId?: str
         <GlobeSkeleton />
       ) : (
         <Canvas
-          camera={{ position: [0, 0, GLOBE_RADIUS * 2.5], fov: 45 }}
+          camera={{ position: [0, GLOBE_RADIUS * 1.05, GLOBE_RADIUS * 2.75], fov: 45 }}
           style={{ background: isLight ? 'var(--bg-primary)' : '#030609' }}
           gl={{ antialias: true, alpha: false }}
           dpr={[1, 2]}
