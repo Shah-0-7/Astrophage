@@ -1,0 +1,103 @@
+/* ── Observatory shell: theme tokens, chrome and restyle of the platform's own panels ── */
+.ob-root{
+  --ob-top:84px; --ob-bottom:132px;
+  --ob-mono:"Geist Mono","Roboto Mono",ui-monospace,monospace;
+  --ob-sans:"Geist","Inter",system-ui,sans-serif;
+  /* re-point the platform's design tokens so every existing panel picks up the hero palette */
+  --bg-primary:#000; --bg-secondary:#07070b; --bg-tertiary:#101016;
+  --bg-glass:rgba(0,0,0,.55); --bg-glass-light:rgba(0,0,0,.5); --bg-header:rgba(0,0,0,.6); --bg-drawer:rgba(0,0,0,.72); --bg-sidebar:rgba(0,0,0,.5); --bg-overlay:rgba(0,0,0,.6);
+  --crimson:#ff7a59; --crimson-dim:rgba(255,122,89,.16); --crimson-glow:rgba(255,122,89,.35);
+  --accent:#ffb28f; --accent-dim:rgba(255,178,143,.12); --accent-glow:rgba(255,160,130,.4); --accent-text:#ffb28f;
+  --border-zinc:rgba(255,255,255,.2); --border-glass:rgba(255,255,255,.12); --border-crimson:rgba(255,178,143,.5);
+  --text-primary:#fff; --text-secondary:rgba(255,255,255,.7); --text-muted:rgba(255,255,255,.45);
+  --globe-bg:#000; --topo-bg:#000;
+  --font-sans:var(--ob-sans); --font-mono:var(--ob-mono);
+  position:fixed; inset:0; overflow:hidden; background:radial-gradient(90% 60% at 50% 110%,rgba(255,110,90,.12),transparent 60%),#000; color:#fff; font-family:var(--ob-sans);
+}
+.ob-view{position:absolute;left:0;right:0;top:var(--ob-top);bottom:var(--ob-bottom);overflow:hidden;animation:ob-fade .7s ease both}
+.ob-view-full{position:absolute;inset:0;animation:ob-fade .7s ease both}
+@keyframes ob-fade{from{opacity:0}to{opacity:1}}
+.ob-root[data-view=events]{--ob-bottom:0px}
+.ob-right{justify-self:end;display:flex;align-items:center;gap:14px}
+.ob-telemetry{display:none;gap:14px;font:500 10.5px var(--ob-mono);letter-spacing:.12em;color:rgba(255,255,255,.55);white-space:nowrap}
+@media (min-width:1180px){.ob-telemetry{display:flex}}
+.ob-sources span{display:flex;align-items:center;gap:8px;font:500 11px var(--ob-mono)}
+.ob-sources em{width:6px;height:6px;border-radius:50%;display:inline-block}
+.ob-resid{margin-left:18px}
+.ob-accum{display:flex;align-items:flex-end}
+.ob-accum>div{display:grid;gap:3px}
+.ob-play:focus-visible,.ob-tab:focus-visible,.ob-speeds button:focus-visible,.ob-live:focus-visible{outline:1px solid #fff;outline-offset:2px}
+
+/* ── the platform's own components, restyled in place ── */
+.ob-root .tac-btn{border-radius:999px;background:none;font-family:var(--ob-mono);letter-spacing:.14em}
+.ob-root .tac-btn:hover{border-color:#fff}
+.ob-root .tac-btn.active{background:none;box-shadow:inset 0 0 0 1px #fff;border-color:transparent}
+.ob-root .nav-tab{border-radius:999px}
+.ob-root .nav-tab.active{background:none;box-shadow:inset 0 0 0 1px #fff;border-color:transparent}
+.ob-root .nav-tab.active::after{display:none}
+.ob-root .glass-sidebar,.ob-root .glass-panel,.ob-root .glass-glow,.ob-root .glass-light{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-color:rgba(255,255,255,.2);box-shadow:none}
+.ob-root .glass-panel,.ob-root .glass-glow{border-radius:18px}
+.ob-root .panel-label{letter-spacing:.22em}
+.ob-root .event-side-panel{border-radius:18px}
+.ob-root .radar-scan-line{display:none}
+.ob-root .timeline-slider{accent-color:#ffb28f}
+@media (max-width:640px){.ob-root .event-side-panel{bottom:var(--ob-bottom)!important}}
+
+.ob-top{position:absolute;z-index:20;top:0;left:0;right:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:22px clamp(16px,4vw,56px);pointer-events:none}
+.ob-top>*{pointer-events:auto}
+.ob-root[data-view=events] .ob-top::before{content:"";position:absolute;inset:0 0 -28px;background:linear-gradient(#000 35%,transparent);pointer-events:none;z-index:-1}
+.ob-brand{justify-self:start;color:#fff;text-decoration:none;display:block}
+.ob-tabs{display:flex;gap:4px;padding:4px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(0,0,0,.4);backdrop-filter:blur(12px)}
+.ob-tab{font:500 11px var(--ob-mono);letter-spacing:.18em;color:rgba(255,255,255,.62);background:none;border:0;border-radius:999px;padding:10px 18px;cursor:pointer;transition:color .2s,box-shadow .25s}
+.ob-tab:hover{color:#fff}
+.ob-tab[data-on=true]{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.95),0 0 22px -4px rgba(255,160,130,.5)}
+.ob-live{position:relative;justify-self:end;display:flex;align-items:center;gap:9px;font:500 11px var(--ob-mono);letter-spacing:.2em;color:#fff;padding:10px 14px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(0,0,0,.4);backdrop-filter:blur(12px);cursor:default}
+.ob-live i{width:7px;height:7px;border-radius:50%;background:#ff6a5e;box-shadow:0 0 10px #ff6a5e;animation:ob-blink 1.6s infinite}
+@keyframes ob-blink{50%{opacity:.35}}
+.ob-sources{position:absolute;right:0;top:calc(100% + 10px);min-width:180px;display:grid;gap:8px;padding:14px 16px;border:1px solid rgba(255,255,255,.2);border-radius:14px;background:rgba(0,0,0,.8);backdrop-filter:blur(14px);opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .2s,transform .2s;letter-spacing:.1em;color:rgba(255,255,255,.75)}
+.ob-sources b{font-weight:500;font-size:10px;letter-spacing:.22em;color:rgba(255,255,255,.4)}
+.ob-live:hover .ob-sources,.ob-live:focus .ob-sources{opacity:1;transform:none}
+.ob-time{position:absolute;z-index:15;left:50%;bottom:24px;transform:translateX(-50%);width:min(920px,calc(100% - 32px));padding:14px 20px 16px;border:1px solid rgba(255,255,255,.2);border-radius:22px;background:rgba(0,0,0,.5);backdrop-filter:blur(16px);color:#fff}
+.ob-time-controls{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+.ob-play{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.85);background:none;color:#fff;display:grid;place-items:center;cursor:pointer;transition:background .2s,color .2s}
+.ob-play:hover{background:#fff;color:#000}
+.ob-speeds{display:flex;gap:2px}
+.ob-speeds button{font:500 11px var(--ob-mono);letter-spacing:.1em;color:rgba(255,255,255,.55);background:none;border:0;border-radius:999px;padding:6px 10px;cursor:pointer}
+.ob-speeds button[data-on=true]{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9)}
+.ob-epoch{font:700 15px var(--font-display), "Arial Black", system-ui, sans-serif;letter-spacing:.02em;display:grid;gap:3px}
+.ob-epoch small,.ob-accum small{font:500 9.5px var(--ob-mono);letter-spacing:.2em;color:rgba(255,255,255,.42);display:block}
+.ob-accum{margin-left:auto;text-align:right;font:700 15px var(--font-display), "Arial Black", system-ui, sans-serif;display:grid;gap:3px}
+.ob-accum span{font:500 10px var(--ob-mono);opacity:.55}
+.ob-track{position:relative;height:28px;cursor:pointer;touch-action:none;outline:none}
+.ob-track:focus-visible .ob-knob{box-shadow:0 0 0 3px rgba(255,255,255,.35)}
+.ob-rail{position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(255,255,255,.28)}
+.ob-fill{position:absolute;left:0;top:50%;height:2px;margin-top:-1px;background:linear-gradient(90deg,#ffd2a6,#ff5d7a);box-shadow:0 0 12px rgba(255,110,100,.7)}
+.ob-tick{position:absolute;top:50%;width:1px;height:12px;margin:-14px 0 0;opacity:.85}
+.ob-knob{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;box-shadow:0 0 16px rgba(255,170,140,.9)}
+@media (prefers-reduced-motion:reduce){.ob-drawer,.ob-live i{animation:none}}
+
+@media (max-width:820px){
+  .ob-root{--ob-top:118px;--ob-bottom:150px}
+  .ob-top{grid-template-columns:1fr auto;grid-template-areas:"b r" "t t";padding-top:16px;gap:12px}
+  .ob-brand{grid-area:b}.ob-right{grid-area:r}.ob-tabs{grid-area:t;justify-self:stretch;justify-content:space-between}
+  .ob-tab{padding:10px 8px;flex:1;letter-spacing:.1em}
+  .ob-time{bottom:10px;padding:12px 14px}
+  .ob-time-controls{gap:10px}
+  .ob-resid{display:none}
+  .lg{padding-top:calc(var(--ob-top) + 12px)}
+}
+
+/* late overrides (must follow the base rules above) */
+.ob-accum{display:flex;flex-direction:row;align-items:flex-end;gap:22px;white-space:nowrap}
+.ob-accum>div{display:grid;gap:3px;text-align:right}
+.ob-resid{margin-left:0}
+.ob-epoch{white-space:nowrap}
+.ob-time{width:min(960px,calc(100% - 32px));padding:12px 20px 14px}
+.ob-time-controls{margin-bottom:6px}
+@media (max-width:820px){
+  .ob-accum>.ob-resid{display:none}
+  .ob-accum>div{font-size:13px}
+  .ob-epoch{font-size:13px}
+  .ob-time-controls{gap:12px;margin-bottom:4px}
+  .ob-root{--ob-bottom:128px}
+}

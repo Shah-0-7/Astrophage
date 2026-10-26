@@ -1374,7 +1374,7 @@ function useFaultLines() {
 // ══════════════════════════════════════════════════════════════
 // ROOT COMPONENT
 // ══════════════════════════════════════════════════════════════
-export default function GlobalSchematicGlobe() {
+export default function GlobalSchematicGlobe({ focusId = null }: { focusId?: string | null } = {}) {
   const {
     filteredEvents,
     sourceHealth,
@@ -1460,6 +1460,14 @@ export default function GlobalSchematicGlobe() {
   useEffect(() => {
     if (selectedEvent) setFlyTo([selectedEvent.lat, selectedEvent.lon]);
   }, [selectedEvent]);
+
+  // Deep link from the event ledger: select and fly to the requested event once it is loaded.
+  useEffect(() => {
+    if (!focusId) return;
+    const target = filteredEvents.find(e => e.id === focusId);
+    if (target) setSelectedEvent(target);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, filteredEvents.length]);
 
   return (
     <div
