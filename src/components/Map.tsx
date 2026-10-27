@@ -39,9 +39,9 @@ if (typeof window !== 'undefined') {
 }
 
 // ESRI World Gray Base (Dark / Light) - free raster basemap
-// Dark theme: bundled vector basemap (near-white land on a near-black ocean) drawn from world-atlas. See <WorldBase />.
+// Dark theme: bundled vector basemap (grey land (as before) on a near-black ocean) drawn from world-atlas. See <WorldBase />.
 export const OCEAN_COLOR = '#06080c';
-export const LAND_COLOR = '#ecedf0';
+export const LAND_COLOR = '#3a3a3d';
 const getMapStyle = (isLight: boolean): any => isLight ? ({
   version: 8,
   sources: {
@@ -78,7 +78,7 @@ function WorldBase({ data }: { data: WorldVector | null }) {
         <Layer id="wb-land-fill" type="fill" paint={{ 'fill-color': LAND_COLOR, 'fill-antialias': true }} />
       </Source>
       <Source id="wb-borders" type="geojson" data={data.borders}>
-        <Layer id="wb-borders-line" type="line" paint={{ 'line-color': '#9aa0ad', 'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.3, 6, 0.9], 'line-opacity': 0.55 }} />
+        <Layer id="wb-borders-line" type="line" paint={{ 'line-color': '#6b6b72', 'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1], 'line-opacity': 0.7 }} />
       </Source>
     </>
   );
