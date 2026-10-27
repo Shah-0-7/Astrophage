@@ -80,6 +80,11 @@ function WorldBase({ data }: { data: WorldVector | null }) {
       <Source id="wb-borders" type="geojson" data={data.borders}>
         <Layer id="wb-borders-line" type="line" paint={{ 'line-color': '#6b6b72', 'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1], 'line-opacity': 0.7 }} />
       </Source>
+      {/* Place names and country labels: Esri's transparent reference layer, drawn over the land */}
+      <Source id="wb-labels" type="raster" tileSize={256} maxzoom={16}
+        tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}']}>
+        <Layer id="wb-labels-raster" type="raster" paint={{ 'raster-fade-duration': 300 }} />
+      </Source>
     </>
   );
 }
@@ -96,6 +101,9 @@ const STATUS_PULSE: Record<string, string> = {
   ELEVATED: '#fb923c',
   NOMINAL:  '#4ade80',
 };
+
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeOutBack = (t: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
 // ── Magnitude → radius (metres) ─────────────────────────────
 function magToRadius(mag: number): number {
@@ -404,6 +412,11 @@ export default function MapComponent() {
           }
         },
         updateTriggers: { getRadius: visibleQuakes.length, getFillColor: visibleQuakes.length },
+        // New events swell from nothing and fade in rather than snapping into place.
+        transitions: {
+          getRadius: { duration: 900, easing: easeOutBack, enter: () => [0] },
+          getFillColor: { duration: 700, easing: easeOutCubic, enter: (v: number[]) => [v[0], v[1], v[2], 0] },
+        },
       }),
 
       // ── Active node threat rings ─────────────────────────────
