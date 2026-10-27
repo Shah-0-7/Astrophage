@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { OutlineDefs } from '@/components/ui/outline-defs';
 import { useEventDirectory, type DirectoryFilters } from '@/lib/useEventDirectory';
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, REGIONS, SORT_OPTIONS, TIME_PRESETS, type SortKey } from '@/lib/eventDirectoryTypes';
@@ -134,7 +135,7 @@ export function Ledger({ onOpen }: LedgerProps) {
       <header className="lg-head">
         <div>
           <div className="lg-kicker">ASTROPHAGE / EVENTS</div>
-          <h2 className="lg-title">LEDGER<sup>{String(matchCount).padStart(2, '0')}</sup></h2>
+          <h2 className="lg-title"><OutlineDefs /><b className="ol ol-2">LEDGER</b><sup>{String(matchCount).padStart(2, '0')}</sup></h2>
         </div>
         <div className="lg-controls">
           <div className="lg-group" role="group" aria-label="Time window">
@@ -224,7 +225,7 @@ export function Ledger({ onOpen }: LedgerProps) {
               <button type="button" className="lg-main" aria-expanded={open} onClick={() => setFilters({ selectedId: open ? '' : e.id })}>
                 <span className="lg-idx">{String(i + 1).padStart(2, '0')}</span>
                 <span className="lg-num">
-                  {h ? <><small>{h.prefix}</small>{h.value}</> : <span className="lg-glyph">{cfg.icon}</span>}
+                  {h ? <><small>{h.prefix}</small><b className="ol ol-1">{h.value}</b></> : <span className="lg-glyph">{cfg.icon}</span>}
                 </span>
                 <span className="lg-where"><strong>{e.title}</strong><em>{coords(e)}</em></span>
                 <span className="lg-kind"><i />{cfg.label}</span>

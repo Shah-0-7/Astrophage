@@ -14,7 +14,8 @@
 .rp-hero{padding:clamp(28px,6vw,64px) 0 28px}
 .rp-kicker{display:flex;align-items:center;gap:10px;font:500 11px var(--mono);letter-spacing:.24em;color:rgba(255,255,255,.6)}
 .rp-kicker i{width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c)}
-.rp-num{margin:14px 0 6px;font:700 clamp(4.5rem,18vw,13rem)/.85 var(--font-display),"Arial Black",system-ui,sans-serif;color:transparent;-webkit-text-stroke:2px var(--c);letter-spacing:.01em;text-shadow:0 0 60px color-mix(in srgb,var(--c) 35%,transparent)}
+.rp-num{margin:14px 0 6px;font:700 clamp(4.5rem,18vw,13rem)/.85 var(--font-display),"Arial Black",system-ui,sans-serif;color:var(--c);letter-spacing:.01em}
+.rp-num b{font-weight:inherit;display:inline-block;filter:url(#ol-3) drop-shadow(0 0 28px color-mix(in srgb,var(--c) 45%,transparent))}
 .rp-num small{font:500 clamp(.9rem,2vw,1.4rem) var(--mono);-webkit-text-stroke:0;color:rgba(255,255,255,.55);margin-right:.5em;letter-spacing:.2em;vertical-align:top;position:relative;top:.4em}
 .rp-num span{-webkit-text-stroke:0;color:var(--c)}
 .rp-title{margin:6px 0 8px;font:600 clamp(1.3rem,3.4vw,2.2rem)/1.15 var(--sans);letter-spacing:-.01em;max-width:30ch}

@@ -11,6 +11,7 @@
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { OutlineWordmark } from '@/components/ui/outline-wordmark';
+import { OutlineDefs } from '@/components/ui/outline-defs';
 import { RegionMap } from '@/components/observatory/region-map';
 import { fetchAllGlobalEvents, type GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, CAUSE_LABELS } from '@/lib/eventDirectoryTypes';
@@ -110,7 +111,7 @@ function EventReportInner({ id }: { id: string }) {
         <>
           <section className="rp-hero">
             <div className="rp-kicker"><i />EVENT REPORT · {cfg.label.toUpperCase()} · {CAUSE_LABELS[e.cause].toUpperCase()}</div>
-            <h1 className="rp-num">{num ? <><small>{num.prefix}</small>{num.value}</> : <span>{cfg.icon}</span>}</h1>
+            <h1 className="rp-num">{num ? <><OutlineDefs /><small>{num.prefix}</small><b className="ol ol-3">{num.value}</b></> : <span>{cfg.icon}</span>}</h1>
             <h2 className="rp-title">{e.title}</h2>
             <p className="rp-when">{stamp.iso}</p>
             {phase === 'partial' && <p className="rp-note">Live detail from the source APIs could not be reached, so this summary uses the event record only.</p>}
