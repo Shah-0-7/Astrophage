@@ -98,6 +98,7 @@ const VEI_TEXT: Record<number, { ejecta: string; plume: string; word: string }> 
   8: { ejecta: 'more than 1,000 km³ of ejecta', plume: 'plume above 25 km', word: 'mega-colossal' },
 };
 
+const dimKm = (v: number) => (v < 10 ? v.toFixed(1) : v.toFixed(0));
 function sentenceCase(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // ── builders ───────────────────────────────────────────────────
@@ -139,12 +140,12 @@ export function buildReport({ event: e, quake, eonet, wiki, sources }: BuildInpu
 
     // 2 — area covered
     const dimL = Math.max(r.lengthKm, r.widthKm), dimW = Math.min(r.lengthKm, r.widthKm);
-    const areaBits: string[] = [`The fault patch that slipped is estimated at about ${km2(r.areaKm2)} km² (roughly ${dimL.toFixed(0)} × ${dimW.toFixed(0)} km)`];
+    const areaBits: string[] = [`The fault patch that slipped is estimated at about ${km2(r.areaKm2)} km² (roughly ${dimKm(dimL)} × ${dimKm(dimW)} km)`];
     if (r.surfaceLengthKm != null && depth != null && depth <= 30 && m >= 6) areaBits[0] += `, with up to ~${r.surfaceLengthKm.toFixed(0)} km of surface rupture possible`;
     areaBits[0] += ' (Wells & Coppersmith 1994 scaling, an estimate).';
     if (quake?.shakemapAreaKm2) areaBits.push(`The USGS ShakeMap grid for this event covers about ${km2(quake.shakemapAreaKm2)} km².`);
     sentences.push(areaBits.join(' '));
-    facts.push({ label: 'Rupture area (est.)', value: `${km2(r.areaKm2)} km²`, note: `${dimL.toFixed(0)} × ${dimW.toFixed(0)} km` });
+    facts.push({ label: 'Rupture area (est.)', value: `${km2(r.areaKm2)} km²`, note: `${dimKm(dimL)} × ${dimKm(dimW)} km` });
     if (quake?.shakemapAreaKm2) facts.push({ label: 'ShakeMap coverage', value: `${km2(quake.shakemapAreaKm2)} km²` });
 
     // 3 — shaking and reports
