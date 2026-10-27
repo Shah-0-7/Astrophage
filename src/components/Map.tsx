@@ -14,10 +14,11 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Map as MapLibreMap, Marker, Source, Layer, useControl, NavigationControl } from 'react-map-gl/maplibre';
 import { loadWorldVector, type WorldVector } from '@/lib/worldVector';
+import PLACES from '@/data/places.json';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { MapboxOverlayProps } from '@deck.gl/mapbox';
-import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { useStore } from '@/lib/store';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import { useNISARData } from '@/lib/useNISARData';
@@ -79,11 +80,6 @@ function WorldBase({ data }: { data: WorldVector | null }) {
       </Source>
       <Source id="wb-borders" type="geojson" data={data.borders}>
         <Layer id="wb-borders-line" type="line" paint={{ 'line-color': '#6b6b72', 'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1], 'line-opacity': 0.7 }} />
-      </Source>
-      {/* Place names and country labels: Esri's transparent reference layer, drawn over the land */}
-      <Source id="wb-labels" type="raster" tileSize={256} maxzoom={16}
-        tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}']}>
-        <Layer id="wb-labels-raster" type="raster" paint={{ 'raster-fade-duration': 300 }} />
       </Source>
     </>
   );
@@ -225,6 +221,8 @@ export default function MapComponent() {
   // Never updated during panning — zero re-renders from map movement.
   const HEATMAP_THRESHOLD = 4;
   const [aboveHeatmapZoom, setAboveHeatmapZoom] = useState(false);
+  // Label zoom, quantised to quarter steps so labels re-tier only when it matters.
+  const [labelZoom, setLabelZoom] = useState(1.5);
   const flyToZoomRef = useRef(bb?.zoom2D ?? 0);
 
   // Initial viewport — world-view, fully zoomed out.
@@ -262,6 +260,29 @@ export default function MapComponent() {
     if (!flyToCoords) return;
     if (doFly(flyToCoords as [number, number])) setFlyToCoords(null);
   }, [flyToCoords, doFly, setFlyToCoords]);
+
+  // Place names: countries first, then cities by importance (Natural Earth min_zoom), small towns only once well zoomed in.
+  const labelLayers = useMemo(() => {
+    if (isLight) return [];
+    const countries = (worldVec?.countries ?? []).filter(c => labelZoom >= c.minZoom && labelZoom < 6.75);
+    const cities = (PLACES as Array<[string, number, number, number, number]>)
+      .filter(p => labelZoom >= p[3] + (p[3] >= 6.5 ? 1.6 : 0.9));
+    const common = {
+      fontFamily: 'Inter, system-ui, sans-serif', fontSettings: { sdf: true }, outlineColor: [6, 8, 12, 255] as [number, number, number, number],
+      outlineWidth: 2, pickable: false, getTextAnchor: 'middle' as const, getAlignmentBaseline: 'center' as const,
+    };
+    return [
+      new TextLayer<{ name: string; lon: number; lat: number }>({
+        ...common, id: 'label-countries', data: countries, getPosition: d => [d.lon, d.lat], getText: d => d.name.toUpperCase(),
+        getSize: 11, getColor: [255, 255, 255, 105], fontWeight: 600, sizeUnits: 'pixels',
+      }),
+      new TextLayer<[string, number, number, number, number]>({
+        ...common, id: 'label-cities', data: cities, getPosition: d => [d[1], d[2]], getText: d => d[0],
+        getSize: d => (d[4] ? 13 : 12), getColor: d => (d[4] ? [255, 255, 255, 225] : [255, 255, 255, 170]), sizeUnits: 'pixels',
+        updateTriggers: { getText: cities.length },
+      }),
+    ];
+  }, [isLight, worldVec, labelZoom]);
 
   const layers = useMemo(() => {
     const isFiltered  = phaseFilterMode === 'FILTERED';
@@ -695,6 +716,8 @@ export default function MapComponent() {
         ref={mapRef}
         initialViewState={initialViewState}
         onLoad={() => {
+          const z = mapRef.current?.getZoom();
+          if (typeof z === 'number') setLabelZoom(Math.round(z * 4) / 4);
           const c = pendingFly.current;
           if (c) { pendingFly.current = null; doFly(c); setFlyToCoords(null); }
         }}
@@ -702,6 +725,8 @@ export default function MapComponent() {
           // Only fire a React state update when crossing the heatmap zoom threshold
           const nowAbove = evt.viewState.zoom > HEATMAP_THRESHOLD;
           setAboveHeatmapZoom(prev => (prev !== nowAbove ? nowAbove : prev));
+          const lz = Math.round(evt.viewState.zoom * 4) / 4;
+          setLabelZoom(prev => (prev !== lz ? lz : prev));
         }}
         mapStyle={mapStyle}
         attributionControl={false}
@@ -714,7 +739,7 @@ export default function MapComponent() {
         <NavigationControl position="top-right" visualizePitch={true} />
         {/* DeckGL layers injected into MapLibre’s WebGL context — guaranteed in-sync */}
         <DeckGLOverlay
-          layers={layers}
+          layers={[...labelLayers, ...layers]}
           getTooltip={getTooltip}
           interleaved={false}
         />
