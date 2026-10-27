@@ -19,6 +19,8 @@
 
 'use client';
 
+import { MPH_TO_KT, kmhToKt } from './stormScale';
+
 // ── Unified Event Schema ─────────────────────────────────────
 
 export type EventType =
@@ -29,7 +31,8 @@ export type EventType =
   | 'subsidence'
   | 'mining'
   | 'induced_seismicity'
-  | 'tsunami';
+  | 'tsunami'
+  | 'storm';
 
 export type EventCause = 'natural' | 'human';
 
@@ -47,6 +50,12 @@ export interface GlobalEvent {
   source:           string;        // e.g. "USGS" | "EONET" | "GVP"
   source_url:       string;
   sources:          string[];      // all sources if deduplicated
+  /** Tropical cyclones: maximum sustained wind (knots), where the source reports it. */
+  wind_kts?:        number | null;
+  /** Tropical cyclones: minimum central pressure (hPa). */
+  pressure_mb?:     number | null;
+  /** Tropical cyclones: earlier positions, oldest first, as [lon, lat]. */
+  track?:           [number, number][];
 }
 
 // ── Source status ─────────────────────────────────────────────
@@ -260,29 +269,45 @@ const EONET_CATEGORY_MAP: Record<string, { type: EventType; cause: EventCause }>
   landslides:  { type: 'landslide',  cause: 'natural' },
   seaAndLakeIce: { type: 'cryosphere', cause: 'natural' },
   icebergs:    { type: 'cryosphere', cause: 'natural' },
+  severestorms: { type: 'storm',    cause: 'natural' },
 };
 
-async function fetchEONET(): Promise<GlobalEvent[]> {
-  const cached = cacheGet<GlobalEvent[]>('eonet');
-  if (cached) return cached;
-
-  const url = '/api/global-events/eonet';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`EONET ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const json: any = await res.json();
-
+/** Turns an EONET v3 response into events. Shared by the live feed and the directory's history paging. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function eonetEventsFromJson(json: any): GlobalEvent[] {
   const events: GlobalEvent[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const ev of json.events ?? [] as any[]) {
     const catId: string = (ev.categories?.[0]?.id ?? '').toLowerCase().replace(/\s+/g, '');
-    const mapped = EONET_CATEGORY_MAP[catId] ?? { type: 'tectonic' as EventType, cause: 'natural' as EventCause };
+    // Categories we do not model (wildfires, floods, dust…) are skipped rather than mislabelled as earthquakes.
+    const mapped = EONET_CATEGORY_MAP[catId.toLowerCase()] ?? EONET_CATEGORY_MAP[catId];
+    if (!mapped) continue;
 
-    for (const geo of ev.geometry ?? []) {
-      if (!geo.coordinates) continue;
-      const coords = geo.type === 'Point'
-        ? geo.coordinates as [number, number]
-        : geo.coordinates?.[0] as [number, number] | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const geos = ((ev.geometry ?? []) as any[]).filter(g => g?.coordinates).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    const pointOf = (geo: { type?: string; coordinates: unknown }) =>
+      (geo.type === 'Point' ? geo.coordinates : (geo.coordinates as unknown[])?.[0]) as [number, number] | undefined;
+
+    if (mapped.type === 'storm') {
+      // One record per storm: its latest position, with the earlier positions kept as the track.
+      const last = geos[geos.length - 1]; const at = last && pointOf(last);
+      if (!at) continue;
+      const wind = geos.slice().reverse().map(g => {
+        const v = Number(g.magnitudeValue); const u = String(g.magnitudeUnit ?? '').toLowerCase();
+        return isFinite(v) && v > 0 ? (u.startsWith('kt') ? v : u.includes('mph') ? v * MPH_TO_KT : u.includes('km') ? kmhToKt(v) : null) : null;
+      }).find(v => v != null) ?? null;
+      events.push({
+        id: `eonet_${ev.id}`, type: 'storm', cause: 'natural', title: ev.title ?? 'Tropical cyclone',
+        lat: at[1], lon: at[0], time: new Date(last.date ?? Date.now()).getTime(),
+        magnitude: null, depth: null, displacement_cm: null, wind_kts: wind,
+        track: geos.slice(0, -1).map(pointOf).filter((p): p is [number, number] => !!p),
+        source: 'NASA EONET', source_url: ev.link ?? 'https://eonet.gsfc.nasa.gov', sources: ['NASA EONET'],
+      });
+      continue;
+    }
+
+    for (const geo of geos) {
+      const coords = pointOf(geo);
       if (!coords) continue;
       const [lon, lat] = coords;
       events.push({
@@ -301,9 +326,78 @@ async function fetchEONET(): Promise<GlobalEvent[]> {
       });
     }
   }
+  return events;
+}
+
+async function fetchEONET(): Promise<GlobalEvent[]> {
+  const cached = cacheGet<GlobalEvent[]>('eonet');
+  if (cached) return cached;
+
+  const url = '/api/global-events/eonet';
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`EONET ${res.status}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json();
+
+  const events = eonetEventsFromJson(json);
 
   cacheSet('eonet', events);
   return sanitizeEvents(events);
+}
+
+// ── GDACS tropical cyclones (via our proxy) ──────────────────
+
+async function fetchGDACS(): Promise<GlobalEvent[]> {
+  const cached = cacheGet<GlobalEvent[]>('gdacs');
+  if (cached) return cached;
+  const res = await fetch('/api/global-events/gdacs');
+  if (!res.ok) throw new Error(`GDACS ${res.status}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json();
+  const events: GlobalEvent[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const f of (json.features ?? []) as any[]) {
+    const p = f?.properties ?? {};
+    const c = f?.geometry?.type === 'Point' ? f.geometry.coordinates : null;
+    if (p.eventtype && p.eventtype !== 'TC') continue;
+    if (!Array.isArray(c) || !isFinite(c[0]) || !isFinite(c[1])) continue;
+    const sev = p.severitydata ?? {};
+    const raw = Number(sev.severity);
+    const unit = String(sev.severityunit ?? 'km/h').toLowerCase();
+    const wind = isFinite(raw) && raw > 0 ? (unit.startsWith('kt') ? raw : unit.includes('mph') ? raw * MPH_TO_KT : kmhToKt(raw)) : null;
+    const time = Date.parse(p.todate ?? p.datemodified ?? p.fromdate ?? '');
+    if (!isFinite(time)) continue;
+    const name = String(p.eventname || p.name || '').trim();
+    events.push({
+      id: `gdacs_TC_${p.eventid ?? name}`, type: 'storm', cause: 'natural',
+      title: name ? `Tropical Cyclone ${name.replace(/-\d+$/, '')}` : String(p.name ?? 'Tropical cyclone'),
+      lat: c[1], lon: c[0], time, magnitude: null, depth: null, displacement_cm: null, wind_kts: wind,
+      source: 'GDACS', source_url: p.url?.report ?? p.url?.details ?? 'https://www.gdacs.org', sources: ['GDACS'],
+    });
+  }
+  cacheSet('gdacs', events);
+  return sanitizeEvents(events);
+}
+
+/** EONET and GDACS both report the same storms: merge them by name, keeping the richer record. */
+function mergeStorms(all: GlobalEvent[]): GlobalEvent[] {
+  const storms = all.filter(e => e.type === 'storm');
+  const rest = all.filter(e => e.type !== 'storm');
+  const key = (e: GlobalEvent) => e.title.toLowerCase().replace(/^(super |severe )?(tropical (cyclone|storm|depression)|hurricane|typhoon|cyclone)\s+/, '').replace(/[^a-z0-9]+/g, '').replace(/\d+$/, '');
+  const byName = new Map<string, GlobalEvent>();
+  for (const e of storms) {
+    const k = key(e) || e.id;
+    const prev = byName.get(k);
+    if (!prev) { byName.set(k, e); continue; }
+    const [a, b] = prev.time >= e.time ? [prev, e] : [e, prev];
+    byName.set(k, {
+      ...a, wind_kts: a.wind_kts ?? b.wind_kts ?? null, pressure_mb: a.pressure_mb ?? b.pressure_mb ?? null,
+      track: a.track?.length ? a.track : b.track,
+      title: a.title.length >= b.title.length ? a.title : b.title,
+      sources: Array.from(new Set([...a.sources, ...b.sources])),
+    });
+  }
+  return [...rest, ...byName.values()];
 }
 
 // ── GVP / Smithsonian fetcher (via our proxy) ─────────────────
@@ -413,7 +507,7 @@ export interface GlobalEventsResult {
   loading:       boolean;
 }
 
-type FetcherName = 'USGS' | 'NASA EONET' | 'Smithsonian GVP' | 'NASA COOLR' | 'HiQuake';
+type FetcherName = 'USGS' | 'NASA EONET' | 'GDACS' | 'Smithsonian GVP' | 'NASA COOLR' | 'HiQuake';
 
 async function runFetcher(
   name: FetcherName,
@@ -442,6 +536,7 @@ export async function fetchAllGlobalEvents(
   const health: Map<string, SourceHealth> = new Map([
     ['USGS',            { name: 'USGS',            status: 'loading', lastUpdated: null }],
     ['NASA EONET',      { name: 'NASA EONET',       status: 'loading', lastUpdated: null }],
+    ['GDACS',           { name: 'GDACS',            status: 'loading', lastUpdated: null }],
     ['Smithsonian GVP', { name: 'Smithsonian GVP',  status: 'loading', lastUpdated: null }],
     ['NASA COOLR',      { name: 'NASA COOLR',       status: 'loading', lastUpdated: null }],
     ['HiQuake',         { name: 'HiQuake',          status: 'loading', lastUpdated: null }],
@@ -452,14 +547,15 @@ export async function fetchAllGlobalEvents(
     onHealthUpdate(Array.from(health.values()));
   };
 
-  const [usgs, eonet, gvp, coolr, hiquake] = await Promise.all([
+  const [usgs, eonet, gdacs, gvp, coolr, hiquake] = await Promise.all([
     runFetcher('USGS',            fetchUSGS,   updateHealth),
     runFetcher('NASA EONET',      fetchEONET,  updateHealth),
+    runFetcher('GDACS',           fetchGDACS,  updateHealth),
     runFetcher('Smithsonian GVP', fetchGVP,    updateHealth),
     runFetcher('NASA COOLR',      fetchCOOLR,  updateHealth),
     runFetcher('HiQuake',         fetchHiQuake, updateHealth),
   ]);
 
-  const all = [...usgs, ...eonet, ...gvp, ...coolr, ...hiquake];
+  const all = mergeStorms([...usgs, ...eonet, ...gdacs, ...gvp, ...coolr, ...hiquake]);
   return deduplicateEvents(all);
 }

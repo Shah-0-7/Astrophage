@@ -6,6 +6,7 @@
  * "not reported" rather than guessed.
  */
 import type { GlobalEvent } from './globalEvents';
+import { stormOf, fmtWind } from './stormScale';
 import { depthClass, estimateDisplacement, fmtDisp, magClass, MMI_WORDS, roman, ruptureFromMagnitude, type DisplacementEstimate } from './eventPhysics';
 
 export interface NearbyPlace { name: string; distanceKm: number; direction: string; population: number | null }
@@ -98,6 +99,15 @@ const VEI_TEXT: Record<number, { ejecta: string; plume: string; word: string }> 
   8: { ejecta: 'more than 1,000 km³ of ejecta', plume: 'plume above 25 km', word: 'mega-colossal' },
 };
 
+const STORM_IMPACT: Record<string, string> = {
+  TD: 'A tropical depression is the weakest stage: heavy rain and local flooding are the main hazards.',
+  TS: 'At tropical-storm strength, damaging winds, heavy rain and coastal flooding are possible, mostly to weak structures and vegetation.',
+  '1': 'Category 1 winds are very dangerous and can damage roofs, trees and power lines.',
+  '2': 'Category 2 winds can cause extensive damage to roofs and trees, with widespread power loss.',
+  '3': 'Category 3 is a major cyclone: devastating damage to buildings is likely, with long power and water outages.',
+  '4': 'Category 4 is a major cyclone: catastrophic damage is likely, with areas uninhabitable for weeks.',
+  '5': 'Category 5 is the highest class: catastrophic damage is likely, and much of the affected area may be uninhabitable for months.',
+};
 const dimKm = (v: number) => (v < 10 ? v.toFixed(1) : v.toFixed(0));
 function sentenceCase(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -186,6 +196,24 @@ export function buildReport({ event: e, quake, eonet, wiki, sources }: BuildInpu
     // 5 — displacement
     sentences.push(`Surface displacement: ${disp.label.toLowerCase().replace('≈ ', 'about ')} (${disp.kind === 'negligible' ? 'modelled' : 'modelled, not measured'}; InSAR/GNSS confirmation pending).`);
     facts.push({ label: 'Surface displacement (est.)', value: disp.label, note: 'modelled, not measured' });
+  } else if (e.type === 'storm') {
+    const c = stormOf(e);
+    headline = c ? `${c.full} · ${e.title}` : e.title;
+    const prev = e.track?.length ? e.track[e.track.length - 1] : null;
+    const brg = prev ? (Math.atan2(e.lon - prev[0], e.lat - prev[1]) * 180) / Math.PI : null;
+    const dirs = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+    const heading = brg != null && (Math.abs(e.lon - prev![0]) + Math.abs(e.lat - prev![1])) > 0.05 ? dirs[Math.round(((brg + 360) % 360) / 45) % 8] : null;
+    sentences.push(`${sentenceCase(e.title)} is ${c ? `a ${c.full}` : 'a tropical cyclone'} reported by ${e.sources.join(' & ')}, last positioned at ${coord(e)} on ${t.date}${heading ? ` and tracking ${heading}` : ''}.`);
+    if (e.wind_kts != null) sentences.push(`Maximum sustained winds are about ${fmtWind(e.wind_kts)}${e.pressure_mb != null ? ` with a central pressure near ${Math.round(e.pressure_mb)} hPa` : ''}${c ? `, which falls in the ${c.label.toLowerCase()} band (${c.band})` : ''}.`);
+    else sentences.push('The sources do not report a wind speed for this storm, so its intensity category is not stated.');
+    if (c) sentences.push(STORM_IMPACT[c.code]);
+    if (e.track?.length) sentences.push(`${e.track.length + 1} positions have been logged for this storm.`);
+    if (eonet) sentences.push(`NASA EONET ${eonet.closed ? `closed this event on ${eonet.closed.slice(0, 10)}` : 'still lists this event as open'}.`);
+    sentences.push('No casualty, area or property-damage figures are reported by these sources. A cyclone does not displace the ground, so there is no surface-displacement figure; its impact is wind, storm surge and flooding.');
+    if (c) facts.push({ label: 'Category', value: c.full, note: `${c.band} sustained wind`, tone: c.tone });
+    if (e.wind_kts != null) facts.push({ label: 'Max wind', value: fmtWind(e.wind_kts) });
+    if (e.pressure_mb != null) facts.push({ label: 'Central pressure', value: `${Math.round(e.pressure_mb)} hPa` });
+    facts.push({ label: 'Surface displacement', value: disp.label, note: disp.note });
   } else if (e.type === 'volcanic') {
     const vei = e.magnitude != null ? Math.round(e.magnitude) : null;
     headline = vei != null ? `VEI ${vei} · ${e.title}` : e.title;

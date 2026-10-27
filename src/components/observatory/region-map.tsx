@@ -117,6 +117,16 @@ function paintBase(
   }
   ctx.stroke();
 
+  // storm track: earlier positions joined up to the current one
+  if (event.track?.length) {
+    const pts = [...event.track, [event.lon, event.lat] as [number, number]];
+    ctx.save(); ctx.strokeStyle = tone; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.beginPath();
+    pts.forEach(([lo, la], i) => (i ? ctx.lineTo(X(lo), Y(la)) : ctx.moveTo(X(lo), Y(la)))); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = tone;
+    event.track.forEach(([lo, la]) => { ctx.beginPath(); ctx.arc(X(lo), Y(la), 2.2, 0, 7); ctx.fill(); });
+    ctx.restore();
+  }
+
   // neighbouring events, each in its own tone
   for (const n of neighbors) {
     const x = X(n.lon), y = Y(n.lat);

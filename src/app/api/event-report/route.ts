@@ -17,7 +17,7 @@ import {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const UA = { 'User-Agent': 'Astrophage-EventReport/1.0 (+https://github.com/Shah-0-7/Astrophage)', Accept: 'application/json' };
-const TYPES: EventType[] = ['tectonic', 'volcanic', 'landslide', 'cryosphere', 'subsidence', 'mining', 'induced_seismicity', 'tsunami'];
+const TYPES: EventType[] = ['tectonic', 'volcanic', 'landslide', 'cryosphere', 'subsidence', 'mining', 'induced_seismicity', 'tsunami', 'storm'];
 
 async function getJson(url: string, ms = 7000): Promise<any | null> {
   try {
@@ -202,6 +202,12 @@ export async function GET(req: NextRequest) {
       magnitude: mag !== null && mag !== '' && isFinite(Number(mag)) ? Number(mag) : null,
       depth: dep !== null && dep !== '' && isFinite(Number(dep)) ? Number(dep) : null,
       displacement_cm: null,
+      ...(type === 'storm' ? (() => {
+        const w = Number(sp.get('wind')), pr = Number(sp.get('pres'));
+        let track: [number, number][] | undefined;
+        try { const t = JSON.parse(sp.get('track') ?? '[]'); if (Array.isArray(t)) track = t.filter((p: unknown) => Array.isArray(p) && isFinite(Number(p[0])) && isFinite(Number(p[1]))).slice(-12).map((p: number[]) => [Number(p[0]), Number(p[1])] as [number, number]); } catch { /* ignore */ }
+        return { wind_kts: sp.get('wind') && isFinite(w) ? w : null, pressure_mb: sp.get('pres') && isFinite(pr) ? pr : null, track };
+      })() : {}),
       source: (sp.get('src') ?? 'Unknown').slice(0, 60), source_url: sp.get('url') ?? '', sources: [(sp.get('src') ?? 'Unknown').slice(0, 60)],
     };
   }

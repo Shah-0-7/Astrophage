@@ -15,6 +15,7 @@ import { OutlineDefs } from '@/components/ui/outline-defs';
 import { RegionMap } from '@/components/observatory/region-map';
 import { fetchAllGlobalEvents, type GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, CAUSE_LABELS } from '@/lib/eventDirectoryTypes';
+import { stormOf } from '@/lib/stormScale';
 import { buildReport, utcStamp, type EventReport } from '@/lib/eventReport';
 import './report.css';
 
@@ -28,7 +29,10 @@ function reportUrl(id: string, e: GlobalEvent | null) {
   const q = new URLSearchParams({ id });
   if (e) {
     q.set('title', e.title); q.set('lat', String(e.lat)); q.set('lon', String(e.lon)); q.set('time', String(e.time));
-    q.set('type', e.type); q.set('cause', e.cause); q.set('src', e.source); q.set('url', e.source_url);
+    q.set('type', e.type);
+    if (e.wind_kts != null) q.set('wind', String(e.wind_kts));
+    if (e.pressure_mb != null) q.set('pres', String(e.pressure_mb));
+    if (e.track?.length) q.set('track', JSON.stringify(e.track.slice(-6))); q.set('cause', e.cause); q.set('src', e.source); q.set('url', e.source_url);
     if (e.magnitude != null) q.set('mag', String(e.magnitude));
     if (e.depth != null) q.set('depth', String(e.depth));
   }
@@ -36,6 +40,7 @@ function reportUrl(id: string, e: GlobalEvent | null) {
 }
 
 function headlineNumber(e: GlobalEvent): { prefix: string; value: string } | null {
+  if (e.type === 'storm') { const c = stormOf(e); return c ? { prefix: /^\d$/.test(c.code) ? 'CAT' : '', value: c.code } : null; }
   if (e.magnitude == null) return null;
   return e.source === 'Smithsonian GVP' ? { prefix: 'VEI', value: String(Math.round(e.magnitude)) } : { prefix: 'M', value: e.magnitude.toFixed(1) };
 }

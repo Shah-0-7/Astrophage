@@ -5,6 +5,7 @@
 import type { UnifiedFeature } from './types';
 import type { GlobalEvent } from './globalEvents';
 import { EVENT_TYPE_CONFIG } from './eventDirectoryTypes';
+import { stormOf } from './stormScale';
 import { estimateDisplacement } from './eventPhysics';
 
 export function globalEventToFeature(e: GlobalEvent): UnifiedFeature {
@@ -29,6 +30,10 @@ export function globalEventToFeature(e: GlobalEvent): UnifiedFeature {
         alert_level: e.magnitude != null ? `VEI ${Math.round(e.magnitude)}` : 'REPORTED', last_eruption: iso, activity: e.title,
       },
     } as UnifiedFeature;
+  }
+  if (e.type === 'storm') {
+    const c = stormOf(e);
+    return { id: e.id, source: 'tsunami', geometry, properties: { ...common, headline: undefined, warning_id: e.id, title: e.title, severity: c ? c.full.toUpperCase() : 'TROPICAL CYCLONE', issued_at: iso } } as UnifiedFeature;
   }
   if (e.type === 'tsunami') {
     return { id: e.id, source: 'tsunami', geometry, properties: { ...common, warning_id: e.id, title: e.title, severity: 'INFO', issued_at: iso } } as UnifiedFeature;

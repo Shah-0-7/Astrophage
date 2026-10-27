@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { stormOf, fmtWind } from '@/lib/stormScale';
 import { OutlineDefs } from '@/components/ui/outline-defs';
 import { useEventDirectory, type DirectoryFilters } from '@/lib/useEventDirectory';
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
@@ -30,6 +31,7 @@ function coords(e: GlobalEvent) {
   return `${Math.abs(e.lat).toFixed(2)}°${e.lat >= 0 ? 'N' : 'S'} ${Math.abs(e.lon).toFixed(2)}°${e.lon >= 0 ? 'E' : 'W'}`;
 }
 function headline(e: GlobalEvent): { prefix: string; value: string } | null {
+  if (e.type === 'storm') { const c = stormOf(e); return c ? { prefix: /^\d$/.test(c.code) ? 'CAT' : '', value: c.code } : null; }
   if (e.magnitude == null) return null;
   if (e.source === 'Smithsonian GVP') return { prefix: 'VEI', value: String(Math.round(e.magnitude)) };
   return { prefix: 'M', value: e.magnitude.toFixed(1) };
@@ -240,8 +242,12 @@ export function Ledger({ onOpen }: LedgerProps) {
                     <dl className="lg-stats">
                       <div><dt>Source</dt><dd>{e.sources.join(' + ')}</dd></div>
                       <div><dt>Observed</dt><dd>{utc(e.time)}</dd></div>
+                      {e.type === 'storm' ? (() => { const c = stormOf(e); return (<>
+                        <div><dt>Category</dt><dd>{c ? c.full : 'Not reported'}</dd>{c && <small>{c.band} sustained wind</small>}</div>
+                        <div><dt>Max wind</dt><dd>{e.wind_kts != null ? fmtWind(e.wind_kts) : '—'}</dd>{e.pressure_mb != null && <small>{Math.round(e.pressure_mb)} hPa central pressure</small>}</div>
+                      </>); })() : (<>
                       <div><dt>{e.source === 'Smithsonian GVP' ? 'VEI' : 'Magnitude'}</dt><dd>{e.magnitude != null ? (e.source === 'Smithsonian GVP' ? Math.round(e.magnitude) : e.magnitude.toFixed(1)) : '—'}</dd></div>
-                      <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div>
+                      <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div></>)}
                       <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>
                       {disp.rupture && <div><dt>Rupture area (est.)</dt><dd>{disp.rupture.areaKm2 < 10 ? disp.rupture.areaKm2.toFixed(1) : Math.round(disp.rupture.areaKm2).toLocaleString()} KM²</dd></div>}
                       {disp.rupture && <div><dt>Rupture size (est.)</dt><dd>{disp.rupture.lengthKm.toFixed(0)} × {disp.rupture.widthKm.toFixed(0)} KM</dd></div>}

@@ -25,6 +25,7 @@ export const EVENT_TYPE_CONFIG: Record<EventType, TypeConfig> = {
   mining:             { color: '#fbbf24', label: 'Mining',              icon: '⬡' },
   induced_seismicity: { color: '#f472b6', label: 'Induced Seismicity',  icon: '⚡' },
   tsunami:            { color: '#22d3ee', label: 'Tsunami',             icon: '〜' },
+  storm:              { color: '#38bdf8', label: 'Tropical Cyclone',    icon: '🌀' },
 };
 
 export const CAUSE_LABELS: Record<EventCause, string> = {

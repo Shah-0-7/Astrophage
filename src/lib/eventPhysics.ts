@@ -83,12 +83,13 @@ export function estimateDisplacement(e: Pick<GlobalEvent, 'type' | 'magnitude' |
   const seismic = e.type === 'tectonic' || e.type === 'induced_seismicity' || e.type === 'mining';
   if (!seismic || e.magnitude == null) {
     const why =
+      e.type === 'storm' ? 'Tropical cyclones do not displace the ground; their impact is wind, storm surge and flooding.' :
       e.type === 'volcanic' ? 'Volcano deformation needs InSAR / GNSS; no estimate from VEI alone.' :
       e.type === 'subsidence' ? 'Subsidence is a long-term rate, measured by InSAR; not derivable here.' :
       e.type === 'landslide' ? 'Landslide movement needs InSAR / optical offset tracking.' :
       e.type === 'cryosphere' ? 'Ice motion needs SAR offset tracking.' :
       'No magnitude available to estimate from.';
-    return { kind: 'unknown', cm: null, label: 'NEEDS INSAR', note: why, rupture: null };
+    return { kind: 'unknown', cm: null, label: e.type === 'storm' ? 'N/A' : 'NEEDS INSAR', note: why, rupture: null };
   }
 
   const mag = e.magnitude;

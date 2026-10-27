@@ -21,6 +21,7 @@ import Fuse from 'fuse.js';
 import {
   fetchAllGlobalEvents,
   fetchUSGSWindow,
+  eonetEventsFromJson,
   type GlobalEvent,
   type SourceHealth,
   type EventType,
@@ -154,39 +155,7 @@ async function fetchEONETRange(start: string, end: string, signal: AbortSignal):
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json: any = await res.json();
 
-  const EONET_CAT_MAP: Record<string, { type: EventType; cause: EventCause }> = {
-    volcanoes:     { type: 'volcanic',   cause: 'natural' },
-    earthquakes:   { type: 'tectonic',   cause: 'natural' },
-    landslides:    { type: 'landslide',  cause: 'natural' },
-    seaAndLakeIce: { type: 'cryosphere', cause: 'natural' },
-    icebergs:      { type: 'cryosphere', cause: 'natural' },
-  };
-
-  const events: GlobalEvent[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const ev of json.events ?? [] as any[]) {
-    const catId = (ev.categories?.[0]?.id ?? '').toLowerCase().replace(/\s+/g, '');
-    const mapped = EONET_CAT_MAP[catId] ?? { type: 'tectonic' as EventType, cause: 'natural' as EventCause };
-    for (const geo of ev.geometry ?? []) {
-      if (!geo.coordinates) continue;
-      const coords = geo.type === 'Point'
-        ? geo.coordinates as [number, number]
-        : geo.coordinates?.[0] as [number, number] | undefined;
-      if (!coords) continue;
-      const [lon, lat] = coords;
-      events.push({
-        id: `eonet_${ev.id}_${geo.date ?? ''}`,
-        type: mapped.type, cause: mapped.cause,
-        title: ev.title ?? 'EONET Event',
-        lat, lon,
-        time: new Date(geo.date ?? Date.now()).getTime(),
-        magnitude: null, depth: null, displacement_cm: null,
-        source: 'NASA EONET',
-        source_url: ev.link ?? 'https://eonet.gsfc.nasa.gov',
-        sources: ['NASA EONET'],
-      });
-    }
-  }
+  const events = eonetEventsFromJson(json);
 
   cacheSet(key, events);
   return events;
