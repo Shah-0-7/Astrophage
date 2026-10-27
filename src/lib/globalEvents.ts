@@ -70,9 +70,17 @@ const CACHE_TTL_MS: Record<string, number> = {
   hiquake: 24 * 60 * 60 * 1000, // 24 h (static)
 };
 
+/** Deterministic short id for records that arrive without one (never random: ids are used in URLs). */
+function stableId(...parts: Array<string | number | null | undefined>): string {
+  const str = parts.join('|');
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 function cacheGet<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(`gs_cache_v2_${key}`);
+    const raw = localStorage.getItem(`gs_cache_v3_${key}`);
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw) as { data: T; ts: number };
     const ttl = CACHE_TTL_MS[key] ?? 300_000;
@@ -83,7 +91,7 @@ function cacheGet<T>(key: string): T | null {
 
 function cacheSet<T>(key: string, data: T) {
   try {
-    localStorage.setItem(`gs_cache_v2_${key}`, JSON.stringify({ data, ts: Date.now() }));
+    localStorage.setItem(`gs_cache_v3_${key}`, JSON.stringify({ data, ts: Date.now() }));
   } catch { /* quota exceeded – ignore */ }
 }
 
@@ -146,6 +154,8 @@ function sanitizeEvent(ev: any): GlobalEvent | null {
   if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
 
   const time      = Number(ev.time);
+  // An event with no valid timestamp is dropped: stamping it "now" would make old records look live.
+  if (!isFinite(time)) return null;
   const magnitude = ev.magnitude != null ? Number(ev.magnitude) : null;
   const depth     = ev.depth     != null ? Number(ev.depth)     : null;
 
@@ -153,7 +163,7 @@ function sanitizeEvent(ev: any): GlobalEvent | null {
     ...ev,
     lat,
     lon,
-    time:      isFinite(time)      ? time      : Date.now(),
+    time,
     magnitude: magnitude != null && isFinite(magnitude) ? magnitude : null,
     depth:     depth     != null && isFinite(depth)     ? depth     : null,
   } as GlobalEvent;
@@ -165,6 +175,39 @@ function sanitizeEvents(evs: GlobalEvent[]): GlobalEvent[] {
 }
 
 // ── USGS fetcher ──────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mapUSGSFeature(f: any): GlobalEvent {
+  const p = f.properties;
+  const [lon, lat, depth] = f.geometry.coordinates as [number, number, number];
+  return {
+    id:              `usgs_${f.id}`,
+    type:            'tectonic',
+    cause:           'natural',
+    title:           p.place ?? 'Earthquake',
+    lat, lon,
+    time:            p.time ?? 0,
+    magnitude:       p.mag ?? null,
+    depth:           depth ?? null,
+    displacement_cm: null,
+    source:          'USGS',
+    source_url:      p.url ?? 'https://earthquake.usgs.gov',
+    sources:         ['USGS'],
+  };
+}
+
+/** One bounded slice of the USGS catalogue (used to keep loading older events as the user scrolls). */
+export async function fetchUSGSWindow(startMs: number, endMs: number, signal?: AbortSignal, minMag = 3.5): Promise<GlobalEvent[]> {
+  const qs = new URLSearchParams({
+    minmagnitude: String(minMag), limit: '2000', orderby: 'time',
+    starttime: new Date(startMs).toISOString(), endtime: new Date(endMs).toISOString(),
+  });
+  const res = await fetch(`/api/earthquakes?${qs}`, { signal });
+  if (!res.ok) throw new Error(`USGS window ${res.status}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json();
+  return sanitizeEvents((json.features ?? []).map(mapUSGSFeature));
+}
 
 async function fetchUSGS(): Promise<GlobalEvent[]> {
   const cached = cacheGet<GlobalEvent[]>('usgs');
@@ -276,14 +319,14 @@ async function fetchGVP(): Promise<GlobalEvent[]> {
   const json: any = await res.json();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const events: GlobalEvent[] = (json.events ?? []).map((ev: any) => ({
+  const events: GlobalEvent[] = (json.events ?? []).filter((ev: any) => ev.time && !isNaN(new Date(ev.time).getTime())).map((ev: any) => ({
     id:              `gvp_${ev.id}`,
     type:            'volcanic' as EventType,
     cause:           'natural' as EventCause,
     title:           ev.title ?? 'Volcanic eruption',
     lat:             ev.lat,
     lon:             ev.lon,
-    time:            new Date(ev.time ?? Date.now()).getTime(),
+    time:            new Date(ev.time).getTime(),
     magnitude:       ev.vei ?? null,
     depth:           null,
     displacement_cm: null,
@@ -310,7 +353,7 @@ async function fetchCOOLR(): Promise<GlobalEvent[]> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const events: GlobalEvent[] = (json.events ?? []).map((ev: any) => ({
-    id:              `coolr_${ev.id ?? Math.random().toString(36).slice(2)}`,
+    id:              `coolr_${ev.id ?? stableId(ev.title, ev.lat, ev.lon, ev.time)}`,
     type:            'landslide' as EventType,
     cause:           'natural' as EventCause,
     title:           ev.title ?? 'Landslide',
@@ -343,7 +386,7 @@ async function fetchHiQuake(): Promise<GlobalEvent[]> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const events: GlobalEvent[] = (json.events ?? []).map((ev: any) => ({
-    id:              `hq_${ev.id ?? Math.random().toString(36).slice(2)}`,
+    id:              `hq_${ev.id ?? stableId(ev.title, ev.lat, ev.lon, ev.time)}`,
     type:            (ev.type ?? 'induced_seismicity') as EventType,
     cause:           'human' as EventCause,
     title:           ev.title ?? 'Human-induced seismicity',

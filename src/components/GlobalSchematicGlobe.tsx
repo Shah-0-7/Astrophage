@@ -41,7 +41,8 @@ import {
 } from '@/lib/useGlobalEvents';
 import type { SourceHealth } from '@/lib/globalEvents';
 import { useTheme } from '@/lib/ThemeProvider';
-import { WireGlobe, useWorldGeo } from '@/components/WireGlobe';
+import { WireGlobe } from '@/components/WireGlobe';
+import { useWorldGeo } from '@/lib/useWorldGeo';
 import { getTerraceTextures, loadWorldGeo, paintBasemap } from '@/lib/worldGeo';
 
 // ── Globe view mode ───────────────────────────────────────────

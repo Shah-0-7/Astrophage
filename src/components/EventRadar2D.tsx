@@ -21,6 +21,8 @@ import { TARGET_NODES, PASS_EPOCHS, BACKSCATTER_VALUES } from '@/lib/mockData';
 import type { PhaseFilterMode, PolVar, UnifiedFeature } from '@/lib/types';
 import { useSSEStream } from '@/lib/useSSEStream';
 import { filterByPlayback } from '@/lib/playbackFilter';
+import { estimateDisplacement } from '@/lib/eventPhysics';
+import Link from 'next/link';
 
 // Dynamically import the Deck.gl map to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/Map'), {
@@ -264,7 +266,7 @@ export default function EventRadar2D() {
               <div className="flex items-center gap-2">
                 <span style={{ color: 'var(--crimson)', fontSize: '14px' }}>{EVENT_SYMBOLS[selectedGlobalEvent.source] || '●'}</span>
                 <span className="panel-label text-white uppercase">
-                  {selectedGlobalEvent.source} - {
+                  {(selectedGlobalEvent.properties as any).kind_label ?? selectedGlobalEvent.source} - {
                     selectedGlobalEvent.source === 'seismic' ? 'Earthquake' :
                     selectedGlobalEvent.source === 'volcanism' ? 'Volcano' :
                     selectedGlobalEvent.source === 'tsunami' ? 'Tsunami' : 'Alert'
@@ -276,16 +278,16 @@ export default function EventRadar2D() {
             
             <div className="p-3 border-b border-white/10">
               <h4 className="font-mono text-sm font-bold text-white mb-2 break-words">
-                {selectedGlobalEvent.source === 'seismic' && (selectedGlobalEvent.properties as any).place}
-                {selectedGlobalEvent.source === 'volcanism' && (selectedGlobalEvent.properties as any).name}
-                {selectedGlobalEvent.source === 'tsunami' && (selectedGlobalEvent.properties as any).title}
-                {selectedGlobalEvent.source === 'cryosphere' && 'Ice Extent Update'}
+                {(() => {
+                  const p = selectedGlobalEvent.properties as any;
+                  return p.place ?? p.name ?? p.title ?? (selectedGlobalEvent.source === 'cryosphere' ? 'Ice Extent Update' : 'Event');
+                })()}
               </h4>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="panel-label">MAGNITUDE/SEVERITY</span>
                   <span className="font-mono text-[10px] font-bold text-white">
-                    {selectedGlobalEvent.source === 'seismic' && `M${(selectedGlobalEvent.properties as any).magnitude.toFixed(1)}`}
+                    {(selectedGlobalEvent.properties as any).headline ?? (selectedGlobalEvent.source === 'seismic' && `M${(selectedGlobalEvent.properties as any).magnitude.toFixed(1)}`)}
                     {selectedGlobalEvent.source === 'volcanism' && (selectedGlobalEvent.properties as any).alert_level}
                     {selectedGlobalEvent.source === 'tsunami' && (selectedGlobalEvent.properties as any).severity}
                     {selectedGlobalEvent.source === 'cryosphere' && 'N/A'}
@@ -306,6 +308,21 @@ export default function EventRadar2D() {
                     <span className="font-mono text-[10px] text-white">{(selectedGlobalEvent.properties as any).depth_km.toFixed(1)} km</span>
                   </div>
                 )}
+                <div className="flex justify-between items-center">
+                  <span className="panel-label">EST. DISPLACEMENT</span>
+                  <span className="font-mono text-[10px] font-bold text-white">
+                    {(() => {
+                      const p = selectedGlobalEvent.properties as any;
+                      if (p.displacement_label) return p.displacement_label;
+                      if (selectedGlobalEvent.source === 'seismic' && p.magnitude != null)
+                        return estimateDisplacement({ type: 'tectonic', magnitude: p.magnitude, depth: p.depth_km ?? null, displacement_cm: null }).label;
+                      return 'N/A';
+                    })()}
+                  </span>
+                </div>
+                {(selectedGlobalEvent.properties as any).displacement_note && (
+                  <p className="font-mono text-[9px] leading-snug text-white/45">{(selectedGlobalEvent.properties as any).displacement_note}</p>
+                )}
                 {selectedGlobalEvent.source === 'cryosphere' && (
                   <div className="flex justify-between items-center">
                     <span className="panel-label">AREA COVERED</span>
@@ -313,6 +330,18 @@ export default function EventRadar2D() {
                   </div>
                 )}
               </div>
+              {(selectedGlobalEvent.properties as any).global_id && (
+                <div className="flex gap-2 mt-3">
+                  <Link
+                    href={`/events/${encodeURIComponent((selectedGlobalEvent.properties as any).global_id)}`}
+                    className="tac-btn flex-1 justify-center text-center" style={{ height: 28, fontSize: 9 }}
+                  >FULL REPORT →</Link>
+                  {(selectedGlobalEvent.properties as any).source_url && (
+                    <a href={(selectedGlobalEvent.properties as any).source_url} target="_blank" rel="noreferrer"
+                      className="tac-btn justify-center text-center" style={{ height: 28, fontSize: 9, padding: '0 8px' }}>SOURCE ↗</a>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : (

@@ -18,6 +18,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { MapboxOverlayProps } from '@deck.gl/mapbox';
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { useStore } from '@/lib/store';
+import { estimateDisplacement } from '@/lib/eventPhysics';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES, PASS_EPOCHS } from '@/lib/mockData';
 import { filterByPlayback } from '@/lib/playbackFilter';
@@ -120,6 +121,7 @@ export default function MapComponent() {
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
   const currentPassIndex   = useStore(s => s.currentPassIndex);
   const flyToCoords        = useStore(s => s.flyToCoords);
+  const setFlyToCoords     = useStore(s => s.setFlyToCoords);
   const selectedGlobalEvent = useStore(s => s.selectedGlobalEvent);
   const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
   const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
@@ -214,17 +216,20 @@ export default function MapComponent() {
     mapRef.current?.flyTo({ center, zoom, duration: 2000, essential: true });
   }, [activeNodeId]);
 
+  // Fly to a requested coordinate. If the map instance is not ready yet (the radar was just opened), remember the
+  // request and run it as soon as the map has loaded, so "open in radar" always lands on the event.
+  const pendingFly = useRef<[number, number] | null>(null);
+  const doFly = useCallback((c: [number, number]) => {
+    const map = mapRef.current;
+    if (!map) { pendingFly.current = c; return false; }
+    map.flyTo({ center: c, zoom: Math.max(flyToZoomRef.current, 7), pitch: 0, bearing: 0, duration: 1600, essential: true });
+    return true;
+  }, []);
+
   useEffect(() => {
-    if (flyToCoords) {
-      const zoom = Math.max(flyToZoomRef.current, 6);
-      mapRef.current?.flyTo({
-        center: flyToCoords as [number, number],
-        zoom,
-        duration: 1500,
-        essential: true,
-      });
-    }
-  }, [flyToCoords]);
+    if (!flyToCoords) return;
+    if (doFly(flyToCoords as [number, number])) setFlyToCoords(null);
+  }, [flyToCoords, doFly, setFlyToCoords]);
 
   const layers = useMemo(() => {
     const isFiltered  = phaseFilterMode === 'FILTERED';
@@ -652,6 +657,10 @@ export default function MapComponent() {
       <MapLibreMap
         ref={mapRef}
         initialViewState={initialViewState}
+        onLoad={() => {
+          const c = pendingFly.current;
+          if (c) { pendingFly.current = null; doFly(c); setFlyToCoords(null); }
+        }}
         onZoom={(evt) => {
           // Only fire a React state update when crossing the heatmap zoom threshold
           const nowAbove = evt.viewState.zoom > HEATMAP_THRESHOLD;
@@ -917,7 +926,7 @@ export default function MapComponent() {
                   <span className="font-mono text-[22px] font-bold">
                     {selectedGlobalEvent.source === 'seismic' 
                       ? `M ${((selectedGlobalEvent.properties as any).magnitude || 0).toFixed(1)}` 
-                      : 'N/A'}
+                      : ((selectedGlobalEvent.properties as any).headline ?? 'N/A')}
                   </span>
                 </div>
               </div>
@@ -925,9 +934,16 @@ export default function MapComponent() {
               {/* Bottom Tile (Displacement) */}
               <div className="absolute left-[120px] top-[70px] -translate-y-1/2 flex items-center z-10">
                 <div className="bg-[#09090b]/95 text-white py-5 rounded-2xl border border-white/20 shadow-lg backdrop-blur-md flex flex-col items-center justify-center whitespace-nowrap" style={{ paddingLeft: '32px', paddingRight: '32px' }}>
-                  <span className="font-mono text-[12px] text-white/50 tracking-wider mb-2 uppercase">Total Displacement</span>
+                  <span className="font-mono text-[12px] text-white/50 tracking-wider mb-2 uppercase">Est. Surface Displacement</span>
                   <span className="font-mono text-[22px] font-bold">
-                    {((selectedGlobalEvent.properties as any).displacement || (currentPassIndex > 0 ? (currentPassIndex * 0.6).toFixed(1) : '0.0'))} CM
+                    {(() => {
+                      const p = selectedGlobalEvent.properties as any;
+                      if (p.displacement_label) return p.displacement_label;
+                      if (selectedGlobalEvent.source === 'seismic' && p.magnitude != null) {
+                        return estimateDisplacement({ type: 'tectonic', magnitude: p.magnitude, depth: p.depth_km ?? null, displacement_cm: null }).label;
+                      }
+                      return 'N/A';
+                    })()}
                   </span>
                 </div>
               </div>

@@ -20,6 +20,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Fuse from 'fuse.js';
 import {
   fetchAllGlobalEvents,
+  fetchUSGSWindow,
   type GlobalEvent,
   type SourceHealth,
   type EventType,
@@ -73,6 +74,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 // ── localStorage cache helpers (per-query) ────────────────────
 
 const RANGE_TTL = 5 * 60_000; // 5 min for USGS range fetches
+const FLOOR_MS  = Date.UTC(1970, 0, 1); // how far back "load more" will go
 
 function rangeCacheKey(source: string, start: string, end: string) {
   return `dir_range_${source}_${start}_${end}`;
@@ -270,6 +272,13 @@ export interface UseEventDirectoryReturn {
   locationError:   string | null;
   requestLocation: () => void;
   refresh:         () => void;
+  /** Fetch the next slice of older events (keeps the list growing as the user scrolls). */
+  loadMore:        () => void;
+  loadingMore:     boolean;
+  /** False when the current time filter already covers everything that can be loaded. */
+  hasMore:         boolean;
+  /** Oldest point in time that has been loaded so far (epoch ms), or null before the first load. */
+  loadedBack:      number | null;
 }
 
 // ── Hook ──────────────────────────────────────────────────────
@@ -351,10 +360,45 @@ export function useEventDirectory(): UseEventDirectoryReturn {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.timePreset, filters.customStart, filters.customEnd]);
 
+  // ── Progressive history: older USGS slices appended on demand ─
+  const [history,     setHistory]     = useState<GlobalEvent[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted,   setExhausted]   = useState(false);
+  const cursorRef  = useRef<number | null>(null);   // everything newer than this has been requested
+  const busyRef    = useRef(false);
+  const spanRef    = useRef(7 * 86400_000);          // widens across quiet stretches
+  const [loadedBack, setLoadedBack] = useState<number | null>(null);
+
+  const loadMore = useCallback(() => {
+    if (busyRef.current || exhausted) return;
+    if (cursorRef.current === null) {
+      // Start where the base feed stops: its oldest USGS event (the base fetch is capped at a fixed count).
+      const usgs = allEvents.filter(e => e.id.startsWith('usgs_'));
+      if (!usgs.length) return;
+      cursorRef.current = usgs.reduce((m, e) => Math.min(m, e.time), Infinity);
+    }
+    const end = cursorRef.current;
+    if (end <= FLOOR_MS) { setExhausted(true); return; }
+    const start = Math.max(FLOOR_MS, end - spanRef.current);
+    busyRef.current = true;
+    setLoadingMore(true);
+    fetchUSGSWindow(start, end)
+      .then(evts => {
+        cursorRef.current = start;
+        setLoadedBack(start);
+        // Quiet window → look further next time; busy window → keep slices small.
+        spanRef.current = evts.length === 0 ? Math.min(spanRef.current * 2, 365 * 86400_000)
+                         : evts.length > 1200 ? Math.max(86400_000, spanRef.current / 2) : spanRef.current;
+        if (evts.length) setHistory(h => mergeEvents(h, evts));
+      })
+      .catch(() => { /* transient – the next scroll retries */ })
+      .finally(() => { busyRef.current = false; setLoadingMore(false); });
+  }, [allEvents, exhausted]);
+
   // ── Merged event set ──────────────────────────────────────
   const merged = useMemo(
-    () => mergeEvents(allEvents, rangeEvents),
-    [allEvents, rangeEvents]
+    () => mergeEvents(mergeEvents(allEvents, rangeEvents), history),
+    [allEvents, rangeEvents, history]
   );
 
   // ── Geolocation ───────────────────────────────────────────
@@ -479,5 +523,9 @@ export function useEventDirectory(): UseEventDirectoryReturn {
     locationError,
     requestLocation,
     refresh,
+    loadMore,
+    loadingMore,
+    hasMore: !exhausted && !loading && filters.timePreset === 'all',
+    loadedBack,
   };
 }

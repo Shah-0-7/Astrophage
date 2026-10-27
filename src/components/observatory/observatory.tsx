@@ -8,6 +8,8 @@ import { useGlobalEvents } from '@/lib/useGlobalEvents';
 import { EVENT_TYPE_CONFIG } from '@/lib/eventDirectoryTypes';
 import type { ViewMode } from '@/lib/types';
 import type { GlobalEvent } from '@/lib/globalEvents';
+import { globalEventToFeature } from '@/lib/eventFeature';
+import { PASS_EPOCHS } from '@/lib/mockData';
 import { Iris, type IrisHandle } from './iris';
 import { Loader } from './loader';
 import { Ledger } from './ledger';
@@ -32,6 +34,8 @@ function Inner({ initialView }: { initialView: ObView }) {
   const viewMode = useStore(s => s.viewMode);
   const setViewMode = useStore(s => s.setViewMode);
   const setFlyToCoords = useStore(s => s.setFlyToCoords);
+  const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
+  const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
   const [eventsOpen, setEventsOpen] = useState(initialView === 'events');
   const [globeFocus, setGlobeFocus] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
@@ -60,10 +64,16 @@ function Inner({ initialView }: { initialView: ObView }) {
 
   const openFromLedger = useCallback((target: 'radar' | 'globe', e: GlobalEvent, x: number, y: number) => {
     goTo(target, x, y, () => {
-      if (target === 'radar') setFlyToCoords([e.lon, e.lat]);
-      else setGlobeFocus(e.id);
+      if (target === 'radar') {
+        // Select the event (opens its callout and info panel), jump the timeline to its epoch and zoom in on it.
+        setSelectedGlobalEvent(globalEventToFeature(e));
+        let best = 0, diff = Infinity;
+        PASS_EPOCHS.forEach((p, i) => { const d = Math.abs(new Date(p.date).getTime() - e.time); if (d < diff) { diff = d; best = i; } });
+        setCurrentPassIndex(best);
+        setFlyToCoords([e.lon, e.lat]);
+      } else setGlobeFocus(e.id);
     });
-  }, [goTo, setFlyToCoords]);
+  }, [goTo, setFlyToCoords, setSelectedGlobalEvent, setCurrentPassIndex]);
 
   // Density ticks on the timeline: where events fall inside the feed's time span.
   const ticks = useMemo(() => {

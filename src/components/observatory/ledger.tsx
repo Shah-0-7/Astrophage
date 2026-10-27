@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useEventDirectory, type DirectoryFilters } from '@/lib/useEventDirectory';
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, REGIONS, SORT_OPTIONS, TIME_PRESETS, type SortKey } from '@/lib/eventDirectoryTypes';
+import { estimateDisplacement } from '@/lib/eventPhysics';
+import { RegionMap } from './region-map';
 import './ledger.css';
 
 const TYPES = Object.keys(EVENT_TYPE_CONFIG) as EventType[];
@@ -52,41 +54,19 @@ function Histogram({ events }: { events: GlobalEvent[] }) {
   );
 }
 
-/* ── dot-lattice locator with a pulsing marker ────────────────── */
-function Locator({ event }: { event: GlobalEvent }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const color = EVENT_TYPE_CONFIG[event.type].color;
-    let raf = 0;
-    const draw = (time: number) => {
-      const w = canvas.clientWidth, h = canvas.clientHeight, dpr = Math.min(devicePixelRatio || 1, 2);
-      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      const mx = ((event.lon + 180) / 360) * w, my = ((90 - event.lat) / 180) * h, step = 9;
-      for (let y = step / 2; y < h; y += step) for (let x = step / 2; x < w; x += step) {
-        const d = Math.hypot(x - mx, y - my);
-        const wave = reduce ? 0 : Math.max(0, 1 - Math.abs(d - ((time / 14) % 160)) / 14);
-        ctx.fillStyle = `rgba(255,255,255,${(0.1 + 0.55 * Math.exp(-d / 46) + wave * 0.5).toFixed(3)})`;
-        ctx.fillRect(x - 0.6, y - 0.6, 1.2, 1.2);
-      }
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.beginPath();
-      ctx.moveTo(0, my + 0.5); ctx.lineTo(w, my + 0.5); ctx.moveTo(mx + 0.5, 0); ctx.lineTo(mx + 0.5, h); ctx.stroke();
-      const g = ctx.createRadialGradient(mx, my, 0, mx, my, 26);
-      g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.globalAlpha = 0.45; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 26, 0, 7); ctx.fill();
-      ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 3, 0, 7); ctx.fill();
-      ctx.strokeStyle = color; ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7); ctx.stroke();
-      if (!reduce) raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [event]);
-  return <canvas ref={ref} className="lg-locator" aria-hidden="true" />;
+/** Events near the expanded one, shown faintly on its map. */
+function nearby(all: GlobalEvent[], e: GlobalEvent): GlobalEvent[] {
+  const out: GlobalEvent[] = [];
+  for (const n of all) {
+    if (n.id === e.id) continue;
+    if (Math.abs(n.lat - e.lat) < 12 && Math.abs(n.lon - e.lon) < 18) { out.push(n); if (out.length >= 80) break; }
+  }
+  return out;
+}
+
+/** Hand the event to the report page so it opens instantly, even for records the feed no longer returns. */
+function stashEvent(e: GlobalEvent) {
+  try { sessionStorage.setItem(`ob_event_${e.id}`, JSON.stringify(e)); } catch { /* private mode */ }
 }
 
 export interface LedgerProps {
@@ -97,7 +77,7 @@ export interface LedgerProps {
 /** Typographic ledger of live events, driven by the directory's own filter, search and URL-sync hook. */
 export function Ledger({ onOpen }: LedgerProps) {
   const dir = useEventDirectory();
-  const { filters, setFilters, clearFilters, filteredEvents, allEvents, sourceHealth, loading, rangeLoading, matchCount, totalCount, userLocation, locationError } = dir;
+  const { filters, setFilters, clearFilters, filteredEvents, allEvents, sourceHealth, loading, rangeLoading, matchCount, totalCount, userLocation, locationError, loadMore, loadingMore, hasMore } = dir;
   const [advanced, setAdvanced] = useState(false);
   const [query, setQuery] = useState(filters.search);
   const [shown, setShown] = useState(PAGE);
@@ -111,15 +91,23 @@ export function Ledger({ onOpen }: LedgerProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // Reset paging whenever the result set changes; load more as the sentinel scrolls into view.
-  useEffect(() => { setShown(PAGE); }, [filteredEvents]);
+  // Reset paging when the filters change (not when older events stream in below the fold).
+  const filterKey = JSON.stringify({ ...filters, selectedId: '' });
+  useEffect(() => { setShown(PAGE); }, [filterKey]);
+
+  // Scrolling to the bottom first reveals more of what is loaded, then pulls in older events from the feeds.
+  const total = filteredEvents.length;
   useEffect(() => {
     const node = sentinel.current;
     if (!node) return;
-    const io = new IntersectionObserver(entries => { if (entries[0].isIntersecting) setShown(n => n + PAGE); }, { rootMargin: '400px' });
+    const io = new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) return;
+      if (shown < total) setShown(n => n + PAGE);
+      else if (hasMore) loadMore();
+    }, { rootMargin: '600px' });
     io.observe(node);
     return () => io.disconnect();
-  }, [shown, filteredEvents]);
+  }, [shown, total, hasMore, loadMore, loadingMore]);
 
   const typeCounts = useMemo(() => {
     const m = {} as Record<EventType, number>;
@@ -137,6 +125,9 @@ export function Ledger({ onOpen }: LedgerProps) {
     (filters.magMax < 10 ? 1 : 0) + (filters.nearMe ? 1 : 0) + (filters.search ? 1 : 0) + (filters.timePreset !== 'all' ? 1 : 0);
 
   const rows = filteredEvents.slice(0, shown);
+  const openEvent = filters.selectedId ? filteredEvents.find(r => r.id === filters.selectedId) ?? null : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const openNeighbors = useMemo(() => (openEvent ? nearby(allEvents, openEvent) : []), [openEvent, allEvents.length]);
 
   return (
     <section className="lg" aria-label="Event ledger">
@@ -227,6 +218,7 @@ export function Ledger({ onOpen }: LedgerProps) {
         {!loading && rows.length === 0 && <li className="lg-note">NOTHING RECORDED FOR THIS FILTER.</li>}
         {rows.map((e, i) => {
           const h = headline(e), open = filters.selectedId === e.id, cfg = EVENT_TYPE_CONFIG[e.type];
+          const disp = estimateDisplacement(e);
           return (
             <li key={e.id} className="lg-row" data-open={open} style={{ '--c': cfg.color, '--d': `${Math.min(i, 14) * 28}ms` } as React.CSSProperties}>
               <button type="button" className="lg-main" aria-expanded={open} onClick={() => setFilters({ selectedId: open ? '' : e.id })}>
@@ -243,17 +235,20 @@ export function Ledger({ onOpen }: LedgerProps) {
               <div className="lg-fold">
                 <div className="lg-fold-in">
                   <div className="lg-detail">
-                    {open && <Locator event={e} />}
+                    {open && <RegionMap event={e} neighbors={openNeighbors} />}
                     <dl className="lg-stats">
                       <div><dt>Source</dt><dd>{e.sources.join(' + ')}</dd></div>
                       <div><dt>Observed</dt><dd>{utc(e.time)}</dd></div>
+                      <div><dt>{e.source === 'Smithsonian GVP' ? 'VEI' : 'Magnitude'}</dt><dd>{e.magnitude != null ? (e.source === 'Smithsonian GVP' ? Math.round(e.magnitude) : e.magnitude.toFixed(1)) : '—'}</dd></div>
                       <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div>
-                      <div><dt>Displacement</dt><dd>{e.displacement_cm != null ? `${e.displacement_cm} CM` : 'PENDING'}</dd></div>
+                      <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>
+                      {disp.rupture && <div><dt>Rupture area (est.)</dt><dd>{disp.rupture.areaKm2 < 10 ? disp.rupture.areaKm2.toFixed(1) : Math.round(disp.rupture.areaKm2).toLocaleString()} KM²</dd></div>}
+                      {disp.rupture && <div><dt>Rupture size (est.)</dt><dd>{disp.rupture.lengthKm.toFixed(0)} × {disp.rupture.widthKm.toFixed(0)} KM</dd></div>}
                     </dl>
                     <div className="lg-links">
                       <button type="button" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onOpen('radar', e, r.left + r.width / 2, r.top + r.height / 2); }}>OPEN IN RADAR →</button>
                       <button type="button" className="lg-ghost" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onOpen('globe', e, r.left + r.width / 2, r.top + r.height / 2); }}>SHOW ON GLOBE</button>
-                      <Link href={`/events/${encodeURIComponent(e.id)}`} className="lg-ghost">FULL REPORT</Link>
+                      <Link href={`/events/${encodeURIComponent(e.id)}`} className="lg-ghost" onClick={() => stashEvent(e)}>FULL REPORT</Link>
                       <a href={e.source_url} target="_blank" rel="noreferrer" className="lg-ghost">SOURCE ↗</a>
                     </div>
                   </div>
@@ -262,7 +257,9 @@ export function Ledger({ onOpen }: LedgerProps) {
             </li>
           );
         })}
-        {rows.length < filteredEvents.length && <li ref={sentinel} className="lg-note">LOADING MORE…</li>}
+        {(rows.length < filteredEvents.length || hasMore) && (
+          <li ref={sentinel} className="lg-note">{rows.length >= filteredEvents.length && loadingMore ? 'LOADING OLDER EVENTS…' : 'LOADING MORE…'}</li>
+        )}
       </ol>
     </section>
   );

@@ -9,24 +9,15 @@
  * Everything comes from bundled data (see lib/worldGeo) so it never depends on a network request.
  */
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { getTerraceTextures, loadWorldGeo, lonLatToPositions, type WorldGeo } from '@/lib/worldGeo';
-
-export function useWorldGeo(): WorldGeo | null {
-  const [geo, setGeo] = useState<WorldGeo | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadWorldGeo().then(g => { if (alive) setGeo(g); }).catch(err => console.warn('[worldGeo] failed to build', err));
-    return () => { alive = false; };
-  }, []);
-  return geo;
-}
+import { getTerraceTextures, lonLatToPositions, type WorldGeo } from '@/lib/worldGeo';
+import { useWorldGeo } from '@/lib/useWorldGeo';
 
 const RIM_VERT = /* glsl */ `
   varying vec3 vN; varying vec3 vV;
