@@ -9,7 +9,10 @@ export function OutlineDefs() {
         {([['ol-1', 0.8], ['ol-2', 1.5], ['ol-3', 2.2]] as const).map(([id, r]) => (
           <filter key={id} id={id} x="-8%" y="-12%" width="116%" height="124%" colorInterpolationFilters="sRGB">
             <feMorphology in="SourceGraphic" operator="dilate" radius={r} result="grown" />
-            <feComposite in="grown" in2="SourceAlpha" operator="out" />
+            <feComponentTransfer in="SourceAlpha" result="solid">
+              <feFuncA type="linear" slope="6" intercept="-0.4" />
+            </feComponentTransfer>
+            <feComposite in="grown" in2="solid" operator="out" />
           </filter>
         ))}
       </defs>
