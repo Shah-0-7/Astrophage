@@ -12,7 +12,8 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Map as MapLibreMap, Marker, useControl, NavigationControl } from 'react-map-gl/maplibre';
+import { Map as MapLibreMap, Marker, Source, Layer, useControl, NavigationControl } from 'react-map-gl/maplibre';
+import { loadWorldVector, type WorldVector } from '@/lib/worldVector';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { MapboxOverlayProps } from '@deck.gl/mapbox';
@@ -38,7 +39,10 @@ if (typeof window !== 'undefined') {
 }
 
 // ESRI World Gray Base (Dark / Light) - free raster basemap
-const getMapStyle = (isLight: boolean): any => ({
+// Dark theme: bundled vector basemap (near-white land on a near-black ocean) drawn from world-atlas. See <WorldBase />.
+export const OCEAN_COLOR = '#06080c';
+export const LAND_COLOR = '#ecedf0';
+const getMapStyle = (isLight: boolean): any => isLight ? ({
   version: 8,
   sources: {
     esri: {
@@ -60,7 +64,25 @@ const getMapStyle = (isLight: boolean): any => ({
       maxzoom: 19,
     },
   ],
+}) : ({
+  version: 8,
+  sources: {},
+  layers: [{ id: 'ocean', type: 'background', paint: { 'background-color': OCEAN_COLOR } }],
 });
+
+function WorldBase({ data }: { data: WorldVector | null }) {
+  if (!data) return null;
+  return (
+    <>
+      <Source id="wb-land" type="geojson" data={data.land}>
+        <Layer id="wb-land-fill" type="fill" paint={{ 'fill-color': LAND_COLOR, 'fill-antialias': true }} />
+      </Source>
+      <Source id="wb-borders" type="geojson" data={data.borders}>
+        <Layer id="wb-borders-line" type="line" paint={{ 'line-color': '#9aa0ad', 'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.3, 6, 0.9], 'line-opacity': 0.55 }} />
+      </Source>
+    </>
+  );
+}
 
 const CATEGORY_COLOR: Record<string, { fill: string; stroke: string; icon: string }> = {
   TECTONIC:  { fill: 'rgba(239,68,68,0.18)',  stroke: '#ef4444', icon: '▲' },
@@ -114,6 +136,8 @@ export default function MapComponent() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const mapStyle = useMemo(() => getMapStyle(isLight), [isLight]);
+  const [worldVec, setWorldVec] = useState<WorldVector | null>(null);
+  useEffect(() => { let alive = true; loadWorldVector().then(v => { if (alive) setWorldVec(v); }).catch(() => {}); return () => { alive = false; }; }, []);
 
   const activeNodeId    = useStore(s => s.activeNodeId);
   const setActiveNodeId = useStore(s => s.setActiveNodeId);
@@ -673,6 +697,7 @@ export default function MapComponent() {
         maxZoom={18}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
       >
+        {!isLight && <WorldBase data={worldVec} />}
         <NavigationControl position="top-right" visualizePitch={true} />
         {/* DeckGL layers injected into MapLibre’s WebGL context — guaranteed in-sync */}
         <DeckGLOverlay
