@@ -2,9 +2,14 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/lib/ThemeProvider';
 
+const description = 'Real-time global event monitoring: earthquakes, volcanoes, landslides, ice and tropical cyclones, with SAR/InSAR analysis for the NASA-ISRO NISAR mission.';
+
 export const metadata: Metadata = {
-  title: 'Astrophage — Geospatial Telemetry Platform',
-  description: 'Real-time geospatial telemetry, SAR/InSAR analysis, and global event monitoring using NASA-ISRO NISAR mission data.',
+  title: { default: 'Astrophage — Geospatial Telemetry Platform', template: '%s · Astrophage' },
+  description,
+  applicationName: 'Astrophage',
+  openGraph: { title: 'Astrophage — Geospatial Telemetry Platform', description, siteName: 'Astrophage', type: 'website' },
+  twitter: { card: 'summary_large_image', title: 'Astrophage — Geospatial Telemetry Platform', description },
 };
 
 export default function RootLayout({

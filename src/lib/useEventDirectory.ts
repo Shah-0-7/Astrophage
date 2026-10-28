@@ -117,9 +117,9 @@ async function fetchUSGSRange(start: string, end: string, signal: AbortSignal): 
   const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${start}&endtime=${end}&minmagnitude=4.5&limit=5000`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`USGS range ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const events: GlobalEvent[] = (json.features ?? []).map((f: any) => {
     const p = f.properties;
     const [lon, lat, depth] = f.geometry.coordinates as [number, number, number];
@@ -152,7 +152,7 @@ async function fetchEONETRange(start: string, end: string, signal: AbortSignal):
   const url = `/api/global-events/eonet?start=${start}&end=${end}`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`EONET range ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
 
   const events = eonetEventsFromJson(json);
@@ -326,7 +326,7 @@ export function useEventDirectory(): UseEventDirectoryReturn {
     });
 
     return () => ctrl.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [filters.timePreset, filters.customStart, filters.customEnd]);
 
   // ── Progressive history: older USGS slices appended on demand ─

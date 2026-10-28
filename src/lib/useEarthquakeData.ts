@@ -47,7 +47,7 @@ const PB2002_URL =
   'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json';
 
 // ── Parse raw USGS GeoJSON feature into our typed shape ──────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function parseUSGSFeature(f: any): USGSEarthquake | null {
   try {
     const p = f.properties;
@@ -84,7 +84,7 @@ export function useEarthquakeData(minMagnitude = 4.5, limit = 300): EarthquakeDa
 
   // Fetch earthquakes from USGS proxy
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setStatus('loading');
     const url = `/api/earthquakes?minmagnitude=${minMagnitude}&limit=${limit}`;
     fetch(url)
@@ -92,7 +92,7 @@ export function useEarthquakeData(minMagnitude = 4.5, limit = 300): EarthquakeDa
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       .then((geojson: any) => {
         const parsed = (geojson.features ?? [])
           .map(parseUSGSFeature)

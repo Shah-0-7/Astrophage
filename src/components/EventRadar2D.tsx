@@ -101,8 +101,9 @@ export default function EventRadar2D() {
       evt.source === 'seismic' ? (evt.properties as any).event_time :
       evt.source === 'volcanism' ? (evt.properties as any).last_eruption :
       evt.source === 'tsunami' ? (evt.properties as any).issued_at :
-      (evt.properties as any).date || Date.now()
+      (evt.properties as any).date
     ).getTime();
+    if (!isFinite(evtTime)) return; // no usable timestamp: leave the scrubber where it is
     let closestIdx = 0; let minDiff = Infinity;
     PASS_EPOCHS.forEach((pass, idx) => {
       const diff = Math.abs(new Date(pass.date).getTime() - evtTime);

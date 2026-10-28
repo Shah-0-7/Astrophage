@@ -118,7 +118,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 
 // ── Deduplication ─────────────────────────────────────────────
 
-function deduplicateEvents(events: GlobalEvent[]): GlobalEvent[] {
+export function deduplicateEvents(events: GlobalEvent[]): GlobalEvent[] {
   const dedupedMap = new Map<string, GlobalEvent>();
   const DIST_KM = 50;
   const TIME_MS = 24 * 60 * 60 * 1000;
@@ -154,7 +154,7 @@ function deduplicateEvents(events: GlobalEvent[]): GlobalEvent[] {
 // missing or out-of-range coordinates so bad API data never crashes
 // the globe renderer.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function sanitizeEvent(ev: any): GlobalEvent | null {
   const lat = Number(ev.lat);
   const lon = Number(ev.lon);
@@ -179,13 +179,13 @@ function sanitizeEvent(ev: any): GlobalEvent | null {
 }
 
 function sanitizeEvents(evs: GlobalEvent[]): GlobalEvent[] {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (evs as any[]).map(sanitizeEvent).filter((e): e is GlobalEvent => e !== null);
 }
 
 // ── USGS fetcher ──────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function mapUSGSFeature(f: any): GlobalEvent {
   const p = f.properties;
   const [lon, lat, depth] = f.geometry.coordinates as [number, number, number];
@@ -213,7 +213,7 @@ export async function fetchUSGSWindow(startMs: number, endMs: number, signal?: A
   });
   const res = await fetch(`/api/earthquakes?${qs}`, { signal });
   if (!res.ok) throw new Error(`USGS window ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
   return sanitizeEvents((json.features ?? []).map(mapUSGSFeature));
 }
@@ -230,10 +230,10 @@ async function fetchUSGS(): Promise<GlobalEvent[]> {
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`USGS ${res.status}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const json: any = await res.json();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const events: GlobalEvent[] = (json.features ?? []).map((f: any) => {
       const p = f.properties;
       const [lon, lat, depth] = f.geometry.coordinates as [number, number, number];
@@ -273,17 +273,17 @@ const EONET_CATEGORY_MAP: Record<string, { type: EventType; cause: EventCause }>
 };
 
 /** Turns an EONET v3 response into events. Shared by the live feed and the directory's history paging. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function eonetEventsFromJson(json: any): GlobalEvent[] {
   const events: GlobalEvent[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   for (const ev of json.events ?? [] as any[]) {
     const catId: string = (ev.categories?.[0]?.id ?? '').toLowerCase().replace(/\s+/g, '');
     // Categories we do not model (wildfires, floods, dust…) are skipped rather than mislabelled as earthquakes.
     const mapped = EONET_CATEGORY_MAP[catId.toLowerCase()] ?? EONET_CATEGORY_MAP[catId];
     if (!mapped) continue;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const geos = ((ev.geometry ?? []) as any[]).filter(g => g?.coordinates).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
     const pointOf = (geo: { type?: string; coordinates: unknown }) =>
       (geo.type === 'Point' ? geo.coordinates : (geo.coordinates as unknown[])?.[0]) as [number, number] | undefined;
@@ -336,7 +336,7 @@ async function fetchEONET(): Promise<GlobalEvent[]> {
   const url = '/api/global-events/eonet';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`EONET ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
 
   const events = eonetEventsFromJson(json);
@@ -352,10 +352,10 @@ async function fetchGDACS(): Promise<GlobalEvent[]> {
   if (cached) return cached;
   const res = await fetch('/api/global-events/gdacs');
   if (!res.ok) throw new Error(`GDACS ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
   const events: GlobalEvent[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   for (const f of (json.features ?? []) as any[]) {
     const p = f?.properties ?? {};
     const c = f?.geometry?.type === 'Point' ? f.geometry.coordinates : null;
@@ -380,7 +380,7 @@ async function fetchGDACS(): Promise<GlobalEvent[]> {
 }
 
 /** EONET and GDACS both report the same storms: merge them by name, keeping the richer record. */
-function mergeStorms(all: GlobalEvent[]): GlobalEvent[] {
+export function mergeStorms(all: GlobalEvent[]): GlobalEvent[] {
   const storms = all.filter(e => e.type === 'storm');
   const rest = all.filter(e => e.type !== 'storm');
   const key = (e: GlobalEvent) => e.title.toLowerCase().replace(/^(super |severe )?(tropical (cyclone|storm|depression)|hurricane|typhoon|cyclone)\s+/, '').replace(/[^a-z0-9]+/g, '').replace(/\d+$/, '');
@@ -409,10 +409,10 @@ async function fetchGVP(): Promise<GlobalEvent[]> {
   const url = '/api/global-events/gvp';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GVP ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const events: GlobalEvent[] = (json.events ?? []).filter((ev: any) => ev.time && !isNaN(new Date(ev.time).getTime())).map((ev: any) => ({
     id:              `gvp_${ev.id}`,
     type:            'volcanic' as EventType,
@@ -442,10 +442,10 @@ async function fetchCOOLR(): Promise<GlobalEvent[]> {
   const url = '/api/global-events/coolr';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`COOLR ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const events: GlobalEvent[] = (json.events ?? []).map((ev: any) => ({
     id:              `coolr_${ev.id ?? stableId(ev.title, ev.lat, ev.lon, ev.time)}`,
     type:            'landslide' as EventType,
@@ -475,10 +475,10 @@ async function fetchHiQuake(): Promise<GlobalEvent[]> {
   const url = '/api/global-events/hiquake';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HiQuake ${res.status}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const json: any = await res.json();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const events: GlobalEvent[] = (json.events ?? []).map((ev: any) => ({
     id:              `hq_${ev.id ?? stableId(ev.title, ev.lat, ev.lon, ev.time)}`,
     type:            (ev.type ?? 'induced_seismicity') as EventType,

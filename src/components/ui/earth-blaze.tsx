@@ -59,7 +59,7 @@ export function EarthBlaze({
     illumination: finite(illumination, 1, 3), auroraColor: color(auroraColor), backgroundColor: color(backgroundColor),
     auroraPreview, auroraEnabled, interactive, textureUrl, reducedMotion };
   const latest = React.useRef(options);
-  // eslint-disable-next-line react-hooks/refs
+   
   latest.current = options;
   React.useEffect(() => {
     if (!canvas.current || !fallback.current) return;

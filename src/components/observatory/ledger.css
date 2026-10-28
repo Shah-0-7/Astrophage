@@ -94,3 +94,10 @@
 .lg-stats .lg-wide{grid-column:1/-1}
 .lg-stats small{display:block;margin-top:6px;font:400 11px/1.5 var(--ob-mono);letter-spacing:.02em;color:rgba(255,255,255,.5);max-width:62ch}
 .lg-locator{height:230px}
+
+/* ── source outage notice ── */
+.lg-alert{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:12px;font:500 11px/1.5 var(--ob-mono);letter-spacing:.06em;color:#ffb3a8;border:1px solid rgba(255,106,94,.35);background:rgba(255,106,94,.07);border-radius:12px;padding:10px 14px}
+.lg-alert button{font:500 10px var(--ob-mono);letter-spacing:.18em;color:#fff;background:none;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:6px 12px;cursor:pointer}
+.lg-alert button:hover{background:#fff;color:#000}
+/* ── keyboard focus ── */
+.lg-links button:focus-visible,.lg-links a:focus-visible,.lg-alert button:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:10px}

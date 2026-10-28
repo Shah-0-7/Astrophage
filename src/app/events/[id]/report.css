@@ -65,3 +65,4 @@
 
 @media (max-width:900px){.rp-grid{grid-template-columns:1fr}.rp-side{position:static;order:-1}.rp-canvas{height:240px}.rp-bar{grid-template-columns:auto 1fr auto}.rp-brand{justify-self:center}}
 @media (prefers-reduced-motion:reduce){.rp-spin,.rp-skel i{animation:none}}
+.rp a:focus-visible,.rp button:focus-visible{outline:2px solid #fff;outline-offset:3px}

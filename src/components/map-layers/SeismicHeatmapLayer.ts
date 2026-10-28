@@ -39,7 +39,7 @@ export function buildSeismicHeatmapLayer(props: Props) {
 
   const data = props.features.map(f => {
     const p = f.properties as SeismicProperties;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const [lng, lat] = (f.geometry as any).coordinates;
     return { position: [lng, lat] as [number, number], weight: p.magnitude ?? 1 };
   });

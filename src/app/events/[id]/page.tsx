@@ -78,6 +78,7 @@ function EventReportInner({ id }: { id: string }) {
   }, []);
 
   const e = report?.event ?? null;
+  useEffect(() => { if (e) document.title = `${e.title} · Event report · Astrophage`; }, [e]);
   const cfg = e ? EVENT_TYPE_CONFIG[e.type] : null;
   const num = useMemo(() => (e ? headlineNumber(e) : null), [e]);
   const stamp = e ? utcStamp(e.time) : null;

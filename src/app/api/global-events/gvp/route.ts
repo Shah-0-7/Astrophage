@@ -34,7 +34,7 @@ export async function GET() {
   try {
     const res = await fetch(GVP_WFS, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error(`GVP/HANS ${res.status}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const data: any[] = await res.json();
 
     const events = data.slice(0, 100).map((v, i) => ({

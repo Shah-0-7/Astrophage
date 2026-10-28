@@ -192,7 +192,7 @@ export default function MapComponent() {
       const t = setTimeout(() => setSeismicAlert([]), 4000);
       return () => clearTimeout(t);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [currentPassIndex]);
 
   const activeNode = TARGET_NODES.find(n => n.id === activeNodeId);
@@ -529,7 +529,7 @@ export default function MapComponent() {
         padding: '10px 12px',
       },
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   return (

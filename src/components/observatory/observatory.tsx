@@ -44,7 +44,7 @@ function Inner({ initialView }: { initialView: ObView }) {
   // Honour the deep-linked view on first mount.
   useEffect(() => {
     if (initialView !== 'events') setViewMode(TO_STORE[initialView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   // The observatory look is dark-only.

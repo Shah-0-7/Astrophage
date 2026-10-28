@@ -91,7 +91,7 @@ export function Ledger({ onOpen }: LedgerProps) {
     if (query === filters.search) return;
     const id = setTimeout(() => setFilters({ search: query }), 260);
     return () => clearTimeout(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [query]);
 
   // Reset paging when the filters change (not when older events stream in below the fold).
@@ -129,7 +129,7 @@ export function Ledger({ onOpen }: LedgerProps) {
 
   const rows = filteredEvents.slice(0, shown);
   const openEvent = filters.selectedId ? filteredEvents.find(r => r.id === filters.selectedId) ?? null : null;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const openNeighbors = useMemo(() => (openEvent ? nearby(allEvents, openEvent) : []), [openEvent, allEvents.length]);
 
   return (
@@ -213,6 +213,13 @@ export function Ledger({ onOpen }: LedgerProps) {
         <span>{matchCount} OF {totalCount}</span>
         {rangeLoading && <span>LOADING HISTORY…</span>}
       </div>
+
+      {sourceHealth.some(h => h.status === 'error') && !loading && (
+        <p className="lg-alert" role="status">
+          {sourceHealth.filter(h => h.status === 'error').map(h => h.name).join(', ')} unavailable right now — showing events from the other sources.
+          <button type="button" onClick={() => window.location.reload()}>RETRY</button>
+        </p>
+      )}
 
       <Histogram events={filteredEvents} />
 

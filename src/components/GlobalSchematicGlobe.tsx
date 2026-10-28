@@ -299,7 +299,8 @@ function EventMarker({
   const size   = markerSize(event);
   const recent = isRecent(event);
   const pulseRef = useRef<THREE.Mesh>(null);
-  const tRef     = useRef(Math.random() * Math.PI * 2);
+  // Pulse phase derived from the event id: markers de-sync from each other, and renders stay deterministic.
+  const tRef     = useRef(([...event.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 628) / 100);
 
   useFrame((_, delta) => {
     if (!pulseRef.current) return;
@@ -377,7 +378,7 @@ function FaultLines({
 }) {
   const lines = useMemo(() => {
     if (!data) return [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const fc = data as any;
     const result: THREE.Vector3[][] = [];
     const R = GLOBE_RADIUS + elevationOffset + 0.002;
@@ -510,7 +511,7 @@ function useTiledGlobeTexture(
       ctxRef.current    = null;
       baseReady.current = false;
     };
-  }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled]);  
 
   // Paint base WMS texture onto canvas when available
   useEffect(() => {
@@ -581,7 +582,7 @@ function useTiledGlobeTexture(
         img.src = url;
       }
     }
-  }, [enabled, layer]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, layer]);  
 
   // Store texture ref on the canvas element so the img.onload can find it
   useEffect(() => {
@@ -1476,7 +1477,7 @@ export default function GlobalSchematicGlobe({ focusId = null }: { focusId?: str
     if (!focusId) return;
     const target = filteredEvents.find(e => e.id === focusId);
     if (target) setSelectedEvent(target);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [focusId, filteredEvents.length]);
 
   return (

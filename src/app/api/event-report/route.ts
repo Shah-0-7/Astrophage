@@ -9,12 +9,13 @@
  * Non-USGS events need lat/lon/time/title in the query string (the directory sends them).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { clientKey, rateLimit } from '@/lib/rateLimit';
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import {
   buildReport, type EonetIntel, type NearbyPlace, type QuakeIntel, type ReportSource, type WikiIntel,
 } from '@/lib/eventReport';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 const UA = { 'User-Agent': 'Astrophage-EventReport/1.0 (+https://github.com/Shah-0-7/Astrophage)', Accept: 'application/json' };
 const TYPES: EventType[] = ['tectonic', 'volcanic', 'landslide', 'cryosphere', 'subsidence', 'mining', 'induced_seismicity', 'tsunami', 'storm'];
@@ -182,6 +183,9 @@ async function wikiIntel(event: GlobalEvent, quake: boolean): Promise<WikiIntel 
 }
 
 export async function GET(req: NextRequest) {
+  // Each report fans out to several upstream APIs, so keep one client from hammering it.
+  const limit = rateLimit(clientKey(req), 30, 60_000);
+  if (!limit.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } });
   const sp = new URL(req.url).searchParams;
   const id = (sp.get('id') ?? '').slice(0, 200);
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
