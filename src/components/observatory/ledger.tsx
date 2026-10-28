@@ -30,8 +30,8 @@ function utc(ms: number) {
 function coords(e: GlobalEvent) {
   return `${Math.abs(e.lat).toFixed(2)}°${e.lat >= 0 ? 'N' : 'S'} ${Math.abs(e.lon).toFixed(2)}°${e.lon >= 0 ? 'E' : 'W'}`;
 }
-function headline(e: GlobalEvent): { prefix: string; value: string } | null {
-  if (e.type === 'storm') { const c = stormOf(e); return c ? { prefix: /^\d$/.test(c.code) ? 'CAT' : '', value: c.code } : null; }
+function headline(e: GlobalEvent): { prefix: string; value: string; suffix?: string } | null {
+  if (e.type === 'storm') { const c = stormOf(e); if (!c) return null; return /^\d$/.test(c.code) ? { prefix: 'CAT', value: c.code } : { prefix: '', value: String(Math.round(e.wind_kts ?? 0)), suffix: 'KT' }; }
   if (e.magnitude == null) return null;
   if (e.source === 'Smithsonian GVP') return { prefix: 'VEI', value: String(Math.round(e.magnitude)) };
   return { prefix: 'M', value: e.magnitude.toFixed(1) };
@@ -234,7 +234,7 @@ export function Ledger({ onOpen }: LedgerProps) {
               <button type="button" className="lg-main" aria-expanded={open} onClick={() => setFilters({ selectedId: open ? '' : e.id })}>
                 <span className="lg-idx">{String(i + 1).padStart(2, '0')}</span>
                 <span className="lg-num">
-                  {h ? <><small>{h.prefix}</small><b className="ol ol-1">{h.value}</b></> : <span className="lg-glyph">{cfg.icon}</span>}
+                  {h ? <><small>{h.prefix}</small><b className="ol ol-1">{h.value}</b>{h.suffix && <small className="lg-suffix">{h.suffix}</small>}</> : <span className="lg-glyph">{cfg.icon}</span>}
                 </span>
                 <span className="lg-where"><strong>{e.title}</strong><em>{coords(e)}</em></span>
                 <span className="lg-kind"><i />{cfg.label}</span>

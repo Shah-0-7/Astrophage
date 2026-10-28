@@ -39,8 +39,8 @@ function reportUrl(id: string, e: GlobalEvent | null) {
   return `/api/event-report?${q}`;
 }
 
-function headlineNumber(e: GlobalEvent): { prefix: string; value: string } | null {
-  if (e.type === 'storm') { const c = stormOf(e); return c ? { prefix: /^\d$/.test(c.code) ? 'CAT' : '', value: c.code } : null; }
+function headlineNumber(e: GlobalEvent): { prefix: string; value: string; suffix?: string } | null {
+  if (e.type === 'storm') { const c = stormOf(e); if (!c) return null; return /^\d$/.test(c.code) ? { prefix: 'CAT', value: c.code } : { prefix: '', value: String(Math.round(e.wind_kts ?? 0)), suffix: 'KT' }; }
   if (e.magnitude == null) return null;
   return e.source === 'Smithsonian GVP' ? { prefix: 'VEI', value: String(Math.round(e.magnitude)) } : { prefix: 'M', value: e.magnitude.toFixed(1) };
 }
@@ -117,7 +117,7 @@ function EventReportInner({ id }: { id: string }) {
         <>
           <section className="rp-hero">
             <div className="rp-kicker"><i />EVENT REPORT · {cfg.label.toUpperCase()} · {CAUSE_LABELS[e.cause].toUpperCase()}</div>
-            <h1 className="rp-num">{num ? <><OutlineDefs /><small>{num.prefix}</small><b className="ol ol-3">{num.value}</b></> : <span>{cfg.icon}</span>}</h1>
+            <h1 className="rp-num">{num ? <><OutlineDefs /><small>{num.prefix}</small><b className="ol ol-3">{num.value}</b>{num.suffix && <small className="rp-suffix">{num.suffix}</small>}</> : <span>{cfg.icon}</span>}</h1>
             <h2 className="rp-title">{e.title}</h2>
             <p className="rp-when">{stamp.iso}</p>
             {phase === 'partial' && <p className="rp-note">Live detail from the source APIs could not be reached, so this summary uses the event record only.</p>}

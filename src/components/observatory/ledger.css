@@ -101,3 +101,4 @@
 .lg-alert button:hover{background:#fff;color:#000}
 /* ── keyboard focus ── */
 .lg-links button:focus-visible,.lg-links a:focus-visible,.lg-alert button:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:10px}
+.lg-num small.lg-suffix{margin:0 0 0 .4em;vertical-align:baseline}
