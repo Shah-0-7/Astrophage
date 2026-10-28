@@ -6,6 +6,9 @@ import { OutlineWordmark } from '@/components/ui/outline-wordmark';
 import { useStore } from '@/lib/store';
 import { PASS_EPOCHS } from '@/lib/mockData';
 import type { SourceHealth } from '@/lib/globalEvents';
+import { WatchBell } from './watch-panel';
+import type { Watchlist } from '@/lib/useWatchlist';
+import { PLAYBACK_WINDOWS, windowRange, cutoffInRange } from '@/lib/playbackFilter';
 
 export type ObView = 'globe' | 'radar' | 'topo' | 'events';
 
@@ -49,11 +52,12 @@ function useOrbit() {
 }
 
 export function TopBar({
-  view, onView, health,
+  view, onView, health, watch,
 }: {
   view: ObView;
   onView: (v: ObView, x: number, y: number) => void;
   health: SourceHealth[];
+  watch?: Watchlist;
 }) {
   const utc = useUtcClock();
   const orbit = useOrbit();
@@ -94,6 +98,7 @@ export function TopBar({
           <span>ALT {orbit ? orbit.altitudeKm.toFixed(0) : '747'} KM</span>
           <span>INC {orbit ? orbit.inclination.toFixed(1) : '98.4'}°</span>
         </div>
+        {watch && <WatchBell watch={watch} />}
         <div className="ob-live" tabIndex={0}>
           <i style={{ background: liveColor, boxShadow: `0 0 10px ${liveColor}` }} /> LIVE
           <div className="ob-sources" role="tooltip">
@@ -121,11 +126,15 @@ export function Timeline({ ticks }: { ticks: Array<{ at: number; color: string }
   const isPlaying = useStore(s => s.isPlaying);
   const togglePlayback = useStore(s => s.togglePlayback);
   const playbackSpeed = useStore(s => s.playbackSpeed);
+  const playbackWindow = useStore(s => s.playbackWindow);
+  const playbackAnchor = useStore(s => s.playbackAnchor);
+  const setPlaybackWindow = useStore(s => s.setPlaybackWindow);
   const setPlaybackSpeed = useStore(s => s.setPlaybackSpeed);
   const total = PASS_EPOCHS.length;
   const pass = PASS_EPOCHS[currentPassIndex];
   const progress = total > 1 ? currentPassIndex / (total - 1) : 0;
   const track = useRef<HTMLDivElement>(null);
+  const range = windowRange(playbackWindow, playbackAnchor);
 
   // Auto-playback: one pass per second, divided by speed (same cadence as the original scrubber).
   useEffect(() => {
@@ -172,9 +181,14 @@ export function Timeline({ ticks }: { ticks: Array<{ at: number; color: string }
             <button key={s} type="button" data-on={playbackSpeed === s} aria-pressed={playbackSpeed === s} onClick={() => setPlaybackSpeed(s)}>{s}×</button>
           ))}
         </div>
+        <div className="ob-speeds ob-windows" role="group" aria-label="Event replay window">
+          {PLAYBACK_WINDOWS.map(w => (
+            <button key={w.id} type="button" data-on={playbackWindow === w.id} aria-pressed={playbackWindow === w.id} onClick={() => setPlaybackWindow(w.id)}>{w.label}</button>
+          ))}
+        </div>
         <div className="ob-epoch">
-          {pass ? pass.date.slice(0, 10) : '—'}
-          <small>{pass?.label ?? '—'} · 12-DAY REPEAT</small>
+          {range ? new Date(cutoffInRange(range, progress)).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : pass ? pass.date.slice(0, 10) : '—'}
+          <small>{range ? `REPLAY · LAST ${playbackWindow === '24h' ? '24 HOURS' : '7 DAYS'}` : `${pass?.label ?? '—'} · 12-DAY REPEAT`}</small>
         </div>
         <div className="ob-accum">
           <div><small>ΔD ACCUM</small>{pass?.accumDisplacement?.toFixed(1) ?? '—'} <span>MM</span></div>

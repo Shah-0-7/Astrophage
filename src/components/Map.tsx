@@ -23,7 +23,7 @@ import { useStore } from '@/lib/store';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES, PASS_EPOCHS } from '@/lib/mockData';
-import { filterByPlayback } from '@/lib/playbackFilter';
+import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
 import { useEarthquakeData, type USGSEarthquake } from '@/lib/useEarthquakeData';
 import { useSSEStream } from '@/lib/useSSEStream';
 import { buildSeismicHeatmapLayer } from '@/components/map-layers/SeismicHeatmapLayer';
@@ -148,6 +148,8 @@ export default function MapComponent() {
   const phaseFilterMode    = useStore(s => s.phaseFilterMode);
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
   const currentPassIndex   = useStore(s => s.currentPassIndex);
+  const playbackWindow     = useStore(s => s.playbackWindow);
+  const playbackAnchor     = useStore(s => s.playbackAnchor);
   const flyToCoords        = useStore(s => s.flyToCoords);
   const setFlyToCoords     = useStore(s => s.setFlyToCoords);
   const selectedGlobalEvent = useStore(s => s.selectedGlobalEvent);
@@ -291,11 +293,13 @@ export default function MapComponent() {
 
     // Playback cutoff: map scrubber progress onto each feed's actual time span
     const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
-    const visibleQuakes = filterByPlayback(earthquakes, q => q.time, progress);
+    const range = windowRange(playbackWindow, playbackAnchor);
+    const visibleQuakes = filterByPlayback(earthquakes, q => q.time, progress, range);
     const visibleSeismic = filterByPlayback(
       stream.seismic,
       f => new Date((f.properties as any).event_time).getTime(),
       progress,
+      range,
     );
 
     return [
@@ -473,7 +477,7 @@ export default function MapComponent() {
         }),
       ] : []),
     ];
-  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom]);
+  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, playbackWindow, playbackAnchor, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom]);
 
 
   // Stable tooltip callback — memoized so DeckGLOverlay doesn't rebuild each render
@@ -1110,7 +1114,7 @@ export default function MapComponent() {
 
       {/* ── HUD: Category Legend ────────────────────────────────── */}
       <div
-        className="absolute pointer-events-none"
+        className="map-legend absolute pointer-events-none"
         style={{
           right: 16, bottom: 36, zIndex: 30,
           background: 'rgba(9,9,11,0.82)',

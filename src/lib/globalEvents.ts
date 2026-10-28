@@ -54,8 +54,8 @@ export interface GlobalEvent {
   wind_kts?:        number | null;
   /** Tropical cyclones: minimum central pressure (hPa). */
   pressure_mb?:     number | null;
-  /** Tropical cyclones: earlier positions, oldest first, as [lon, lat]. */
-  track?:           [number, number][];
+  /** Tropical cyclones: earlier positions, oldest first, as [lon, lat, epoch ms]. */
+  track?:           [number, number, number?][];
 }
 
 // ── Source status ─────────────────────────────────────────────
@@ -300,7 +300,7 @@ export function eonetEventsFromJson(json: any): GlobalEvent[] {
         id: `eonet_${ev.id}`, type: 'storm', cause: 'natural', title: ev.title ?? 'Tropical cyclone',
         lat: at[1], lon: at[0], time: new Date(last.date ?? Date.now()).getTime(),
         magnitude: null, depth: null, displacement_cm: null, wind_kts: wind,
-        track: geos.slice(0, -1).map(pointOf).filter((p): p is [number, number] => !!p),
+        track: geos.slice(0, -1).flatMap((g): [number, number, number][] => { const p = pointOf(g); const t = Date.parse(g.date); return p && isFinite(t) ? [[p[0], p[1], t]] : []; }),
         source: 'NASA EONET', source_url: ev.link ?? 'https://eonet.gsfc.nasa.gov', sources: ['NASA EONET'],
       });
       continue;

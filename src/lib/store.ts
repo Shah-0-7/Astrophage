@@ -16,6 +16,7 @@ import type {
   CameraPreset, InstrumentLayers, PointProbeResult, SARBand,
 } from './types';
 import { ALL_SCENARIOS, PASS_EPOCHS } from './mockData';
+import type { PlaybackWindowId } from '@/lib/playbackFilter';
 
 interface StoreState {
   /* ── Navigation ─────────────────────────────────────────── */
@@ -47,6 +48,11 @@ interface StoreState {
   stopPlayback: () => void;
   playbackSpeed: 1 | 2 | 5;
   setPlaybackSpeed: (speed: 1 | 2 | 5) => void;
+  /** Event window the scrubber sweeps: the last 24 h, the last 7 days, or the whole loaded feed. */
+  playbackWindow: PlaybackWindowId;
+  /** Wall-clock end of the 24h/7d window (epoch ms), fixed when the window is chosen so the render stays pure. */
+  playbackAnchor: number;
+  setPlaybackWindow: (w: PlaybackWindowId) => void;
 
   /* ── Legacy timestamp (drives map layers) ─────────────────── */
   currentTimestamp: string;
@@ -157,6 +163,9 @@ export const useStore = create<StoreState>((set, get) => ({
   stopPlayback: () => set({ isPlaying: false }),
   playbackSpeed: 1,
   setPlaybackSpeed: (speed) => set({ playbackSpeed: speed }),
+  playbackWindow: 'all',
+  playbackAnchor: 0,
+  setPlaybackWindow: (w) => set({ playbackWindow: w, playbackAnchor: Date.now(), currentPassIndex: 0, currentTimestamp: PASS_EPOCHS[0]?.date ?? '', isPlaying: false }),
 
   currentTimestamp: defaultScenario.timeRange.start,
   setCurrentTimestamp: (ts) => set({ currentTimestamp: ts }),

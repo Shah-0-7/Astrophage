@@ -82,7 +82,7 @@ export function useGlobalEvents(): UseGlobalEventsReturn {
   // ── Main fetch effect ────────────────────────────────────────
   useEffect(() => {
     abortRef.current = false;
-    setLoading(true);
+    if (tick === 0) setLoading(true);   // later refreshes are silent, so the views never flash
 
     // Safety timeout: never leave the globe in skeleton state > 12s
     const safetyTimer = setTimeout(() => {

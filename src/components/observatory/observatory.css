@@ -101,3 +101,5 @@
   .ob-time-controls{gap:12px;margin-bottom:4px}
   .ob-root{--ob-bottom:128px}
 }
+
+.ob-windows{margin-left:4px;padding-left:10px;border-left:1px solid rgba(255,255,255,.14)}

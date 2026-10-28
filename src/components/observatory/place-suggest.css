@@ -1,0 +1,6 @@
+.ps{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:rgba(8,9,12,.96);border:1px solid rgba(255,255,255,.2);border-radius:14px;backdrop-filter:blur(14px);box-shadow:0 18px 50px -12px rgba(0,0,0,.8)}
+.ps button{width:100%;display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 12px;border:0;border-radius:9px;background:none;color:#fff;font:500 13px var(--ob-sans);text-align:left;cursor:pointer}
+.ps button[data-on='true']{background:rgba(255,255,255,.1)}
+.ps em{font-style:normal;margin-left:8px;font:600 9px var(--ob-mono,monospace);letter-spacing:.14em;color:rgba(255,160,130,.9)}
+.ps small{font:500 10px var(--ob-mono,monospace);letter-spacing:.08em;color:rgba(255,255,255,.45);white-space:nowrap}
+.ps-hint{padding:6px 12px 2px;font:500 9px var(--ob-mono,monospace);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3)}

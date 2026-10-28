@@ -23,7 +23,7 @@ describe('eonetEventsFromJson', () => {
     const storms = out.filter(e => e.type === 'storm');
     expect(storms).toHaveLength(1);
     expect(storms[0]).toMatchObject({ lat: 19, lon: -85, wind_kts: 100 });
-    expect(storms[0].track).toEqual([[-84, 18]]);
+    expect(storms[0].track).toEqual([[-84, 18, Date.parse('2026-10-25T00:00:00Z')]]);
     expect(storms[0].id).toBe('eonet_E1');
   });
   it('skips categories it does not model instead of calling them tectonic', () => {

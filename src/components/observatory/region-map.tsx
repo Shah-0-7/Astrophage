@@ -5,6 +5,8 @@ import type { GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG } from '@/lib/eventDirectoryTypes';
 import { MASK_H, MASK_W, type WorldGeo } from '@/lib/worldGeo';
 import { useWorldGeo } from '@/lib/useWorldGeo';
+import { useStormForecast } from '@/lib/useStormForecast';
+import type { StormForecast } from '@/lib/stormForecast';
 
 const D2R = Math.PI / 180;
 
@@ -14,7 +16,13 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 /** Longitude span (degrees) shown around the event: bigger events get a wider view. */
-function spanFor(e: GlobalEvent): number {
+function spanFor(e: GlobalEvent, f?: StormForecast | null): number {
+  if (e.type === 'storm') {
+    // Wide enough to hold the projected path (the longer of its east-west and north-south reach).
+    let reach = 9;
+    if (f) for (const p of f.path) reach = Math.max(reach, Math.abs(p.lon - e.lon), Math.abs(p.lat - e.lat) * 1.6);
+    return Math.min(70, Math.max(20, reach * 2.4));
+  }
   const m = e.magnitude;
   if (e.type === 'volcanic' || e.type === 'landslide' || e.type === 'mining') return 9;
   if (m == null) return 14;
@@ -33,12 +41,12 @@ function niceStep(span: number): number {
 /** Draws the static layer (land tinted in the event's tone, coast, borders, graticule, neighbours). */
 function paintBase(
   ctx: CanvasRenderingContext2D, w: number, h: number, geo: WorldGeo | null,
-  event: GlobalEvent, neighbors: GlobalEvent[],
+  event: GlobalEvent, neighbors: GlobalEvent[], forecast: StormForecast | null,
 ) {
   const tone = EVENT_TYPE_CONFIG[event.type].color;
   const [tr, tg, tb] = hexToRgb(tone);
   const lat0 = Math.max(-80, Math.min(80, event.lat)), lon0 = event.lon;
-  const spanLon = spanFor(event);
+  const spanLon = spanFor(event, forecast);
   const cosL = Math.max(0.25, Math.cos(lat0 * D2R));
   const k = w / (spanLon * cosL);                       // px per degree of latitude
   const X = (lon: number) => {
@@ -127,6 +135,36 @@ function paintBase(
     ctx.restore();
   }
 
+  // projected path: uncertainty cone (union of hourly circles), centre line, 12-hourly labels, landfall
+  if (forecast && forecast.path.length > 1) {
+    const pxPerKm = k / 111.32;
+    ctx.save();
+    ctx.beginPath();
+    forecast.path.forEach((p, i) => { if (i === 0) return; const x = X(p.lon), y = Y(p.lat), r = p.radiusKm * pxPerKm; ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); });
+    ctx.fillStyle = `rgba(${tr},${tg},${tb},0.20)`; ctx.fill();
+    ctx.strokeStyle = `rgba(${tr},${tg},${tb},0.55)`; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    const last = forecast.path[forecast.path.length - 1];
+    ctx.beginPath(); ctx.arc(X(last.lon), Y(last.lat), last.radiusKm * pxPerKm, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.85; ctx.lineWidth = 1.6; ctx.setLineDash([2, 5]); ctx.lineCap = 'round';
+    ctx.beginPath(); forecast.path.forEach((p, i) => (i ? ctx.lineTo(X(p.lon), Y(p.lat)) : ctx.moveTo(X(p.lon), Y(p.lat)))); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left';
+    forecast.points.forEach(p => {
+      const x = X(p.lon), y = Y(p.lat);
+      ctx.fillStyle = '#05070b'; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillText(`+${p.hours}H`, x + 7, y - 6);
+    });
+    if (forecast.landfall) {
+      const x = X(forecast.landfall.lon), y = Y(forecast.landfall.lat);
+      ctx.strokeStyle = '#ff6a5e'; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.moveTo(x - 6, y - 6); ctx.lineTo(x + 6, y + 6); ctx.moveTo(x + 6, y - 6); ctx.lineTo(x - 6, y + 6); ctx.stroke();
+      ctx.fillStyle = '#ff9a8a'; ctx.fillText(`LANDFALL ~${forecast.landfall.hours}H`, x + 9, y + 14);
+    }
+    ctx.restore();
+  }
+
   // neighbouring events, each in its own tone
   for (const n of neighbors) {
     const x = X(n.lon), y = Y(n.lat);
@@ -163,6 +201,7 @@ export interface RegionMapProps {
 export function RegionMap({ event, neighbors = [], className = 'lg-locator', animate = true }: RegionMapProps) {
   const ref = useRef<HTMLCanvasElement>(null);
   const geo = useWorldGeo();
+  const forecast = useStormForecast(event);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -179,7 +218,7 @@ export function RegionMap({ event, neighbors = [], className = 'lg-locator', ani
       const b = document.createElement('canvas'); b.width = canvas.width; b.height = canvas.height;
       const bctx = b.getContext('2d')!;
       bctx.scale(dpr, dpr);
-      const r = paintBase(bctx, w, h, geo, event, neighbors);
+      const r = paintBase(bctx, w, h, geo, event, neighbors, forecast);
       marker = { x: r.X(event.lon), y: r.Y(event.lat), tone: r.tone };
       base = b; bw = w; bh = h;
     };
@@ -215,7 +254,7 @@ export function RegionMap({ event, neighbors = [], className = 'lg-locator', ani
     const ro = new ResizeObserver(() => { build(); if (reduce) draw(0); });
     ro.observe(canvas);
     return () => { cancelAnimationFrame(raf); ro.disconnect(); };
-  }, [event, neighbors, geo, animate]);
+  }, [event, neighbors, geo, animate, forecast]);
 
   return <canvas ref={ref} className={className} role="img" aria-label={`Map around ${event.title}`} />;
 }

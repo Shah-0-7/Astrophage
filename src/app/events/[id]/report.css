@@ -67,3 +67,15 @@
 @media (prefers-reduced-motion:reduce){.rp-spin,.rp-skel i{animation:none}}
 .rp a:focus-visible,.rp button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .rp-num small.rp-suffix{margin:0 0 0 .4em;vertical-align:baseline}
+
+/* phones */
+@media (max-width:640px){
+  .rp{padding-left:16px;padding-right:16px}
+  .rp-bar{padding:12px 0;background:linear-gradient(#000 78%,transparent)}
+  .rp-bar-r a,.rp-bar-r button,.rp-back{white-space:nowrap}
+  .rp-bar-r a,.rp-bar-r button,.rp-back{padding:9px 12px;font-size:10px;letter-spacing:.12em}
+  .rp-card{padding:18px 16px;border-radius:16px}
+  .rp-map{border-radius:16px}
+  .rp-facts{grid-template-columns:1fr 1fr;gap:16px 14px}
+}
+@media (max-width:480px){.rp-brand{display:none}.rp-bar{grid-template-columns:1fr auto}}

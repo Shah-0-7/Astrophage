@@ -52,6 +52,18 @@ Each source is fetched independently, so one outage never blocks the others; the
 Events from different sources are de-duplicated (same type, within 50 km and 24 h), and storms reported by both EONET and
 GDACS are merged by name.
 
+## Features worth knowing about
+
+- **Watchlist and alerts** (bell in the top bar, or "Watch these" in the ledger): follow event types, a region, or a place, with a minimum
+  magnitude or storm category. Matches from the last 48 hours appear in the panel, and browser notifications fire while the app is
+  open (feeds refresh every 5 minutes). Rules live in `localStorage`; there is no account or server, so no email or push when the app is closed.
+- **Storm outlook**: a projected 72 h path, uncertainty cone and landfall estimate drawn on the storm's map and written up in the ledger and report.
+  It is extrapolated from the storm's own recent track (`src/lib/stormForecast.ts`), **not** an official NHC/JTWC forecast, and is labelled as such.
+- **Radar replay**: 24H / 7D / ALL windows on the timeline sweep the loaded events through the chosen window.
+- **Share and export**: "Share link" copies a URL that keeps the filters and the open event; "Export" downloads the filtered list as CSV or GeoJSON.
+- **Place search**: type a city in the ledger search to filter events near it (adjustable radius) and jump to it on the radar.
+- **Phones**: below 820 px the shell, globe controls, timeline, ledger and report switch to compact layouts (`src/components/observatory/mobile.css`).
+
 ## What is measured and what is estimated
 
 Be careful when quoting numbers from the app.

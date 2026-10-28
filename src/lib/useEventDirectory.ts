@@ -50,6 +50,9 @@ export interface DirectoryFilters {
   sort:         SortKey;
   nearMe:       boolean;
   nearRadius:   number;        // km
+  /** Place picked from the search box: only events within `nearRadius` km of it. */
+  at:           [number, number] | null;   // [lat, lon]
+  atName:       string;
   selectedId:   string;        // ?event=ID  – opens drawer
 }
 
@@ -57,7 +60,7 @@ const DEFAULT_FILTERS: DirectoryFilters = {
   search: '', types: [], cause: 'all', region: '',
   placeSearch: '', timePreset: 'all', customStart: '', customEnd: '',
   magMin: 0, magMax: 10, sort: 'newest',
-  nearMe: false, nearRadius: 500, selectedId: '',
+  nearMe: false, nearRadius: 500, at: null, atName: '', selectedId: '',
 };
 
 // ── Haversine ─────────────────────────────────────────────────
@@ -180,8 +183,15 @@ function filtersToParams(f: DirectoryFilters): URLSearchParams {
   if (f.sort !== 'newest') p.set('sort', f.sort);
   if (f.nearMe)       p.set('nearMe', '1');
   if (f.nearRadius !== 500) p.set('radius', String(f.nearRadius));
+  if (f.at)           { p.set('at', `${f.at[0]},${f.at[1]}`); if (f.atName) p.set('atName', f.atName); }
   if (f.selectedId)   p.set('event', f.selectedId);
   return p;
+}
+
+function parseAt(sp: URLSearchParams): Pick<DirectoryFilters, 'at' | 'atName'> {
+  const [la, lo] = (sp.get('at') ?? '').split(',').map(Number);
+  const ok = Number.isFinite(la) && Number.isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !!sp.get('at');
+  return ok ? { at: [la, lo], atName: (sp.get('atName') ?? '').slice(0, 80) } : { at: null, atName: '' };
 }
 
 function paramsToFilters(sp: URLSearchParams): DirectoryFilters {
@@ -202,6 +212,7 @@ function paramsToFilters(sp: URLSearchParams): DirectoryFilters {
     sort:        (sp.get('sort') as SortKey) ?? 'newest',
     nearMe:      sp.get('nearMe') === '1',
     nearRadius:  Number(sp.get('radius') ?? 500),
+    ...parseAt(sp),
     selectedId:  sp.get('event') ?? '',
   };
 }
@@ -460,15 +471,20 @@ export function useEventDirectory(): UseEventDirectoryReturn {
       );
     }
 
+    // 8b. Near a searched place
+    if (filters.at) {
+      const [la, lo] = filters.at;
+      pool = pool.filter(e => haversineKm(la, lo, e.lat, e.lon) <= filters.nearRadius);
+    }
+
     // 9. Sort
     pool = [...pool].sort((a, b) => {
       switch (filters.sort) {
         case 'oldest':         return a.time - b.time;
         case 'magnitude_desc': return (b.magnitude ?? 0) - (a.magnitude ?? 0);
         case 'nearest':
-          if (!userLocation) return b.time - a.time;
-          return haversineKm(userLocation[0], userLocation[1], a.lat, a.lon)
-               - haversineKm(userLocation[0], userLocation[1], b.lat, b.lon);
+          { const ref = filters.at ?? userLocation; if (!ref) return b.time - a.time;
+          return haversineKm(ref[0], ref[1], a.lat, a.lon) - haversineKm(ref[0], ref[1], b.lat, b.lon); }
         case 'newest':
         default:               return b.time - a.time;
       }

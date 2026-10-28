@@ -1139,8 +1139,14 @@ function LayerControl({
     { id: 'human',   label: 'HUMAN',   count: humanCount   },
   ];
 
+  // Phones: the panels fold behind one button so the globe stays visible (CSS only shows the button there).
+  const [ctlOpen, setCtlOpen] = useState(false);
+
   return (
-    <div className="absolute top-3 left-3 z-20 flex flex-col gap-2" style={{ maxWidth: 226 }}>
+    <div className="gl-controls absolute top-3 left-3 z-20 flex flex-col gap-2" data-open={ctlOpen} style={{ maxWidth: 226 }}>
+      <button type="button" className="gl-ctl-toggle" aria-expanded={ctlOpen} onClick={() => setCtlOpen(o => !o)}>
+        <span aria-hidden="true">{ctlOpen ? '×' : '☰'}</span>{ctlOpen ? 'HIDE CONTROLS' : 'GLOBE CONTROLS'}
+      </button>
       {/* View mode toggle */}
       <ViewModeToggle mode={viewMode} setMode={setViewMode} />
 
@@ -1271,7 +1277,7 @@ function LegendStrip() {
 // ── Source health strip ───────────────────────────────────────
 function SourceHealthStrip({ health }: { health: SourceHealth[] }) {
   return (
-    <div className="absolute top-3 right-3 z-20 glass-panel rounded-sm" style={{ padding: '8px 10px' }}>
+    <div className="gl-sources absolute top-3 right-3 z-20 glass-panel rounded-sm" style={{ padding: '8px 10px' }}>
       <p className="panel-label mb-1.5">SOURCE STATUS</p>
       <div className="flex flex-col gap-1">
         {health.map(h => <SourceBadge key={h.name} health={h} />)}
@@ -1302,7 +1308,7 @@ function DataSourcesFooter({ viewMode }: { viewMode: GlobeViewMode }) {
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-x-4 gap-y-1 flex-wrap px-4 py-1"
+      className="gl-footer absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-x-4 gap-y-1 flex-wrap px-4 py-1"
       style={{ background: 'rgba(9,9,11,0.7)', borderTop: '1px solid rgba(255,255,255,0.05)' }}
     >
       <span className="font-mono text-[7px] text-white/20 tracking-widest uppercase">DATA SOURCES:</span>
@@ -1549,7 +1555,7 @@ export default function GlobalSchematicGlobe({ focusId = null }: { focusId?: str
       {sourceHealth.length > 0 && <SourceHealthStrip health={sourceHealth} />}
 
       {/* Legend */}
-      <div className="absolute z-20"
+      <div className="gl-legend absolute z-20"
            style={{ background: 'rgba(9,9,11,0.80)', bottom: 24, left: 0, width: 'clamp(280px, 50vw, 480px)' }}>
         <LegendStrip />
       </div>

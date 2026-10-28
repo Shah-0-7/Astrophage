@@ -1,0 +1,94 @@
+/*
+ * Phone and small-tablet layout for the observatory.
+ * Everything here sits inside max-width media queries (plus rules that hide mobile-only controls by default),
+ * so layouts above 820px are exactly as they were.
+ */
+
+/* mobile-only controls: hidden by default */
+.gl-ctl-toggle{display:none}
+
+@media (max-width:820px){
+  /* ── shell ── */
+  .ob-root{--ob-top:104px;--ob-bottom:118px}
+  .ob-root[data-view=events]{--ob-bottom:0px}
+  .ob-top{padding:12px 14px 0;gap:8px 10px}
+  .ob-tabs{padding:3px}
+  .ob-tab{padding:9px 4px;font-size:10px;letter-spacing:.08em}
+  .ob-right{gap:8px}
+  .ob-live{padding:9px 12px;font-size:10px;letter-spacing:.16em}
+  .wp-bell{width:36px;height:36px}
+  .ob-root[data-view=events] .ob-top::before{inset:0 0 -18px;background:linear-gradient(#000 80%,transparent)}
+
+  /* ── pass timeline: one compact card ── */
+  .ob-time{left:8px;right:8px;width:auto;transform:none;bottom:max(8px,env(safe-area-inset-bottom));padding:8px 12px 4px;border-radius:18px}
+  .ob-time-controls{flex-wrap:wrap;gap:6px 8px;margin:0}
+  .ob-play{width:30px;height:30px;flex:none}
+  .ob-speeds button{padding:5px 7px;font-size:10px}
+  .ob-windows{margin-left:0;padding-left:6px}
+  .ob-epoch{order:3;flex:1 0 100%;display:flex;align-items:baseline;gap:10px;font-size:11px}
+  .ob-epoch small{font-size:8.5px;letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .ob-accum{display:none}
+  .ob-track{height:24px}
+
+  /* ── globe: controls fold behind one button ── */
+  .gl-controls{max-width:none!important;left:10px!important;right:10px;top:8px!important}
+  .gl-ctl-toggle{display:flex;align-items:center;gap:8px;align-self:flex-start;font:500 10px var(--ob-mono);letter-spacing:.16em;color:#fff;padding:9px 14px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer}
+  .gl-ctl-toggle span{font-size:12px;line-height:1}
+  .gl-controls>.glass-panel{display:none}
+  .gl-controls[data-open=true]{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;max-height:calc(100% - 16px);overflow-y:auto;padding-bottom:6px;align-content:start}
+  .gl-controls[data-open=true]>.gl-ctl-toggle{grid-column:1/-1}
+  .gl-controls[data-open=true]>.glass-panel{display:block}
+  .gl-controls[data-open=true]>.glass-panel:first-of-type,.gl-controls[data-open=true]>.glass-panel:nth-of-type(2){grid-column:1/-1}
+  .gl-sources{display:none}
+  .gl-legend{left:8px!important;right:8px;width:auto!important;bottom:46px!important;border-radius:12px}
+  .gl-footer{padding-block:2px}
+
+  /* ── radar ── */
+  .map-legend{display:none}
+
+  /* ── topo: keep the model visible, trim the instrument chrome ── */
+  .tp-main{min-width:0}
+  .tp-hide,.tp-meta,.tp-foot{display:none!important}
+  .tp-bar>div:first-child{white-space:nowrap}
+  .tp-bar{height:40px!important;padding-inline:12px!important}
+  .tp-loc{height:auto!important;min-height:26px;padding:4px 12px!important;flex-wrap:wrap;gap:2px 10px!important}
+  .tp-loc .ml-auto{display:none}
+  .tp-morph{padding:8px 12px!important}
+  .tp-morph .grid{gap:10px!important}
+  .tp-morph .panel-label{letter-spacing:.08em;white-space:nowrap}
+  .tp-layers{padding:6px 12px!important;gap:12px!important;overflow-x:auto;scrollbar-width:none;white-space:nowrap}
+  .tp-layers::-webkit-scrollbar{display:none}
+  .tp-layers>*{flex:none}
+}
+
+@media (max-width:640px){
+  /* ── ledger ── */
+  .lg{padding-left:16px;padding-right:16px}
+  .lg-head{gap:14px}
+  .lg-controls{width:100%;gap:8px}
+  .lg-group{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .lg-group::-webkit-scrollbar{display:none}
+  .lg-pill{flex:none;white-space:nowrap;padding:8px 12px}
+  .lg-tools{gap:8px}
+  .lg-search{flex:1 0 100%;height:44px}
+  .lg-search input{font-size:16px}  /* 16px stops iOS zooming the page on focus */
+  .lg-more,.lg-clear{height:38px;padding:0 12px;font-size:9.5px;letter-spacing:.06em;white-space:nowrap}
+  .lg-filters{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding-inline:16px;padding-bottom:4px;scrollbar-width:none}
+  .lg-filters::-webkit-scrollbar{display:none}
+  .lg-chip{flex:none;white-space:nowrap}
+  .lg-status{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+  .lg-status::-webkit-scrollbar{display:none}
+  .lg-place{border-radius:18px;width:auto}
+  .lg-adv{grid-template-columns:1fr}
+  .lg-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .lg-links>*{text-align:center;justify-content:center;white-space:nowrap}
+  .lg-menu{right:auto;left:0}
+
+  /* ── watch panel: bottom sheet ── */
+  .ob-root .wp{top:auto;left:0;right:0;bottom:0;width:auto;max-height:86dvh;border-radius:22px 22px 0 0;border-bottom:0;animation:wp-up .28s ease both}
+  .ob-root .wp-body{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+  .wp-alerts a{grid-template-columns:56px 1fr;grid-template-areas:"h t" "h a"}
+  .wp-alerts b{grid-area:h}.wp-alerts span{grid-area:t}.wp-alerts em{grid-area:a;justify-self:start}
+  .ps{max-height:46vh;overflow-y:auto}
+}
+@keyframes wp-up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}

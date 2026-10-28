@@ -9,6 +9,11 @@ import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, REGIONS, SORT_OPTIONS, TIME_PRESETS, type SortKey } from '@/lib/eventDirectoryTypes';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import { RegionMap } from './region-map';
+import { WATCH_ADD_EVENT } from '@/lib/useWatchlist';
+import { StormOutlook } from './storm-outlook';
+import { PlaceSuggest } from './place-suggest';
+import type { Place } from '@/lib/placeSearch';
+import { eventsToCSV, eventsToGeoJSON, download, exportFilename } from '@/lib/exportEvents';
 import './ledger.css';
 
 const TYPES = Object.keys(EVENT_TYPE_CONFIG) as EventType[];
@@ -75,16 +80,21 @@ function stashEvent(e: GlobalEvent) {
 export interface LedgerProps {
   /** Jump to another view centred on this event. */
   onOpen: (view: 'radar' | 'globe', event: GlobalEvent, x: number, y: number) => void;
+  /** Jump to the radar centred on a searched place. */
+  onPlace?: (place: { lat: number; lon: number; name: string }, x: number, y: number) => void;
 }
 
 /** Typographic ledger of live events, driven by the directory's own filter, search and URL-sync hook. */
-export function Ledger({ onOpen }: LedgerProps) {
+export function Ledger({ onOpen, onPlace }: LedgerProps) {
   const dir = useEventDirectory();
   const { filters, setFilters, clearFilters, filteredEvents, allEvents, sourceHealth, loading, rangeLoading, matchCount, totalCount, userLocation, locationError, loadMore, loadingMore, hasMore } = dir;
   const [advanced, setAdvanced] = useState(false);
   const [query, setQuery] = useState(filters.search);
   const [shown, setShown] = useState(PAGE);
   const sentinel = useRef<HTMLLIElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   // Debounce the search box into the URL-synced filter.
   useEffect(() => {
@@ -125,12 +135,34 @@ export function Ledger({ onOpen }: LedgerProps) {
   };
   const activeFilterCount =
     filters.types.length + (filters.cause !== 'all' ? 1 : 0) + (filters.region ? 1 : 0) + (filters.magMin > 0 ? 1 : 0) +
-    (filters.magMax < 10 ? 1 : 0) + (filters.nearMe ? 1 : 0) + (filters.search ? 1 : 0) + (filters.timePreset !== 'all' ? 1 : 0);
+    (filters.magMax < 10 ? 1 : 0) + (filters.nearMe ? 1 : 0) + (filters.search ? 1 : 0) + (filters.at ? 1 : 0) + (filters.timePreset !== 'all' ? 1 : 0);
+
+  const pickPlace = (p: Place) => {
+    setQuery('');
+    setFilters({ search: '', at: [p.lat, p.lon], atName: p.name, nearMe: false });
+  };
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) { await navigator.share({ title: 'Astrophage events', url }); return; }
+      await navigator.clipboard.writeText(url);
+    } catch { try { window.prompt('Copy this link', url); } catch { /* ignore */ } return; }
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
+  };
+  const exportAs = (kind: 'csv' | 'geojson') => {
+    setMenu(false);
+    if (kind === 'csv') download(exportFilename('csv'), eventsToCSV(filteredEvents), 'text/csv;charset=utf-8');
+    else download(exportFilename('geojson'), JSON.stringify(eventsToGeoJSON(filteredEvents), null, 2), 'application/geo+json');
+  };
 
   const rows = filteredEvents.slice(0, shown);
   const openEvent = filters.selectedId ? filteredEvents.find(r => r.id === filters.selectedId) ?? null : null;
    
-  const openNeighbors = useMemo(() => (openEvent ? nearby(allEvents, openEvent) : []), [openEvent, allEvents.length]);
+  const nearbyAll = useMemo(() => (openEvent ? nearby(allEvents, openEvent) : []), [openEvent, allEvents.length]);
+  // History keeps streaming in; only hand the map a new array when the neighbours actually change, since every change repaints it.
+  const nearbyKey = nearbyAll.map(n => n.id).join('|');
+   
+  const openNeighbors = useMemo(() => nearbyAll, [nearbyKey]);
 
   return (
     <section className="lg" aria-label="Event ledger">
@@ -158,13 +190,41 @@ export function Ledger({ onOpen }: LedgerProps) {
       <div className="lg-tools">
         <label className="lg-search">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="6" cy="6" r="4.5" /><path d="M9.5 9.5L13 13" /></svg>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search place, source or type" aria-label="Search events" />
+          <input ref={searchInput} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a place (Tokyo), source or type" aria-label="Search events or jump to a place" />
+          <PlaceSuggest query={query} onPick={pickPlace} inputRef={searchInput} />
         </label>
+        <button type="button" className="lg-more" onClick={share} aria-live="polite">{copied ? 'LINK COPIED ✓' : 'SHARE LINK'}</button>
+        <div className="lg-export">
+          <button type="button" className="lg-more" aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu(m => !m)} disabled={filteredEvents.length === 0}>EXPORT {filteredEvents.length} ▾</button>
+          {menu && (
+            <div className="lg-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => exportAs('csv')}>CSV<small>Spreadsheet</small></button>
+              <button type="button" role="menuitem" onClick={() => exportAs('geojson')}>GEOJSON<small>GIS / maps</small></button>
+            </div>
+          )}
+        </div>
         <button type="button" className="lg-more" aria-expanded={advanced} onClick={() => setAdvanced(a => !a)}>
           MORE FILTERS {advanced ? '−' : '+'}
         </button>
+        {(filters.types.length > 0 || filters.region || filters.magMin > 0 || filters.at) && (
+          <button type="button" className="lg-more" title="Get alerts for events matching these filters" onClick={() => window.dispatchEvent(new CustomEvent(WATCH_ADD_EVENT, { detail: {
+            types: filters.types, region: filters.region, minMagnitude: filters.magMin,
+            at: filters.at ? { lat: filters.at[0], lon: filters.at[1], name: filters.atName || 'this spot', radiusKm: filters.nearRadius } : null,
+          } }))}>WATCH THESE</button>
+        )}
         {activeFilterCount > 0 && <button type="button" className="lg-clear" onClick={() => { setQuery(''); clearFilters(); }}>CLEAR ALL</button>}
       </div>
+
+      {filters.at && (
+        <div className="lg-place" role="group" aria-label="Place filter">
+          <span>NEAR <b>{(filters.atName || `${filters.at[0].toFixed(1)}, ${filters.at[1].toFixed(1)}`).toUpperCase()}</b></span>
+          <select value={filters.nearRadius} aria-label="Radius" onChange={e => setFilters({ nearRadius: Number(e.target.value) })}>
+            {[100, 250, 500, 1000, 2000, 5000].map(r => <option key={r} value={r}>{r} KM</option>)}
+          </select>
+          {onPlace && <button type="button" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onPlace({ lat: filters.at![0], lon: filters.at![1], name: filters.atName }, r.left + r.width / 2, r.top + r.height / 2); }}>SHOW ON RADAR →</button>}
+          <button type="button" aria-label="Remove place filter" onClick={() => setFilters({ at: null, atName: '' })}>×</button>
+        </div>
+      )}
 
       <div className="lg-filters" role="group" aria-label="Event type">
         {TYPES.map(t => (
@@ -255,7 +315,8 @@ export function Ledger({ onOpen }: LedgerProps) {
                       </>); })() : (<>
                       <div><dt>{e.source === 'Smithsonian GVP' ? 'VEI' : 'Magnitude'}</dt><dd>{e.magnitude != null ? (e.source === 'Smithsonian GVP' ? Math.round(e.magnitude) : e.magnitude.toFixed(1)) : '—'}</dd></div>
                       <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div></>)}
-                      <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>
+                      {e.type === 'storm' && open && <StormOutlook event={e} className="lg-wide" />}
+                      {e.type !== 'storm' && <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>}
                       {disp.rupture && <div><dt>Rupture area (est.)</dt><dd>{disp.rupture.areaKm2 < 10 ? disp.rupture.areaKm2.toFixed(1) : Math.round(disp.rupture.areaKm2).toLocaleString()} KM²</dd></div>}
                       {disp.rupture && <div><dt>Rupture size (est.)</dt><dd>{disp.rupture.lengthKm.toFixed(0)} × {disp.rupture.widthKm.toFixed(0)} KM</dd></div>}
                     </dl>

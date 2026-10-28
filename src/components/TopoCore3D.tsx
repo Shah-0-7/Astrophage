@@ -344,18 +344,18 @@ export default function TopoCore3D() {
       </div>
 
       {/* ── Center: 3D terrain canvas ────────────────────────── */}
-      <div className="flex-1 relative flex flex-col">
+      <div className="tp-main flex-1 relative flex flex-col">
 
         {/* Top bar */}
-        <div className="h-[44px] border-b border-white/10 flex items-center px-4 gap-4 flex-shrink-0"
+        <div className="tp-bar h-[44px] border-b border-white/10 flex items-center px-4 gap-4 flex-shrink-0"
              style={{ background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(12px)' }}>
           {/* Tab / mode label */}
           <div className="flex items-center gap-2 border border-white/20 px-3 h-7"
                style={{ borderRadius: 2 }}>
             <span className="font-mono text-[9px] font-700 text-white tracking-wider">◎ SAR-CORE 3D DEM</span>
           </div>
-          <span className="font-mono text-[9px] text-white/30">TACTICAL-SECTOR-47</span>
-          <span className="font-mono text-[9px] text-white/30">/ COHERENCE: γ ≥ {coherenceThreshold.toFixed(2)}</span>
+          <span className="tp-hide font-mono text-[9px] text-white/30">TACTICAL-SECTOR-47</span>
+          <span className="tp-hide font-mono text-[9px] text-white/30">/ COHERENCE: γ ≥ {coherenceThreshold.toFixed(2)}</span>
 
           <div className="ml-auto">
             <button
@@ -368,7 +368,7 @@ export default function TopoCore3D() {
         </div>
 
         {/* Location strip */}
-        <div className="h-[30px] border-b border-white/06 flex items-center px-4 gap-4 flex-shrink-0"
+        <div className="tp-loc h-[30px] border-b border-white/06 flex items-center px-4 gap-4 flex-shrink-0"
              style={{ background: 'rgba(9,9,11,0.7)' }}>
           <span className="panel-label">LOCATION:</span>
           <span className="font-mono text-[10px] text-white">46°51′08.2″N  121°45′37.1″W</span>
@@ -379,7 +379,7 @@ export default function TopoCore3D() {
         </div>
 
         {/* Morphometric controls */}
-        <div className="border-b border-white/10 px-4 py-3 flex-shrink-0"
+        <div className="tp-morph border-b border-white/10 px-4 py-3 flex-shrink-0"
              style={{ background: 'rgba(9,9,11,0.85)' }}>
           <div className="flex items-center gap-2 mb-2">
             <span className="font-mono text-[9px] text-white/40">≡≡</span>
@@ -431,7 +431,7 @@ export default function TopoCore3D() {
         </div>
 
         {/* Instrument layers */}
-        <div className="border-b border-white/10 px-4 py-2 flex-shrink-0 flex items-center gap-6"
+        <div className="tp-layers border-b border-white/10 px-4 py-2 flex-shrink-0 flex items-center gap-6"
              style={{ background: 'rgba(9,9,11,0.80)' }}>
           <span className="panel-label">ACTIVE INSTRUMENT LAYERS</span>
           {[
@@ -464,7 +464,7 @@ export default function TopoCore3D() {
           />
 
           {/* Mission footer */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 py-2 flex items-center gap-6"
+          <div className="tp-meta absolute bottom-0 left-0 right-0 px-4 py-2 flex items-center gap-6"
                style={{ background: 'var(--bg-header)', borderTop: '1px solid var(--border-zinc)' }}>
             <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
               MISSION: NASA-ISRO SAR (NISAR) // QUAD-POL (HH/HV/VH/VV) // POD EPHEMERIS CONFIRMED
@@ -478,7 +478,7 @@ export default function TopoCore3D() {
         </div>
 
         {/* 3D Model Telemetry footer */}
-        <div className="border-t border-white/10 px-4 py-2.5 flex-shrink-0 flex items-center justify-between"
+        <div className="tp-foot border-t border-white/10 px-4 py-2.5 flex-shrink-0 flex items-center justify-between"
              style={{ background: 'rgba(9,9,11,0.92)' }}>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />

@@ -68,7 +68,7 @@
 @media (prefers-reduced-motion:reduce){.lg-row{animation:none}.lg-fold,.lg-row::before,.lg-row::after{transition:none}}
 
 .lg-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-.lg-search{flex:1 1 260px;min-width:0;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:0 16px;height:40px;transition:border-color .2s,box-shadow .2s}
+.lg-search{position:relative;flex:1 1 260px;min-width:0;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:0 16px;height:40px;transition:border-color .2s,box-shadow .2s}
 .lg-search:focus-within{border-color:#fff;box-shadow:0 0 24px -8px rgba(255,160,130,.6)}
 .lg-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font:500 13px var(--ob-sans)}
 .lg-search input::placeholder{color:rgba(255,255,255,.4)}
@@ -102,3 +102,15 @@
 /* ── keyboard focus ── */
 .lg-links button:focus-visible,.lg-links a:focus-visible,.lg-alert button:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:10px}
 .lg-num small.lg-suffix{margin:0 0 0 .4em;vertical-align:baseline}
+
+.lg-export{position:relative}
+.lg-export .lg-more:disabled{opacity:.4;cursor:default}
+.lg-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:170px;padding:6px;background:rgba(8,9,12,.96);border:1px solid rgba(255,255,255,.2);border-radius:14px;backdrop-filter:blur(14px);box-shadow:0 18px 50px -12px rgba(0,0,0,.8)}
+.lg-menu button{display:flex;width:100%;justify-content:space-between;align-items:baseline;gap:14px;padding:9px 12px;border:0;border-radius:9px;background:none;color:#fff;font:500 11px var(--ob-mono);letter-spacing:.14em;cursor:pointer}
+.lg-menu button:hover,.lg-menu button:focus-visible{background:rgba(255,255,255,.1);outline:0}
+.lg-menu small{font:500 10px var(--ob-sans);letter-spacing:0;color:rgba(255,255,255,.45)}
+.lg-place{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:8px 8px 8px 16px;border:1px solid rgba(255,178,143,.4);border-radius:999px;font:500 11px var(--ob-mono);letter-spacing:.14em;color:rgba(255,255,255,.7);width:max-content;max-width:100%}
+.lg-place b{color:#fff;font-weight:600}
+.lg-place select{background:rgba(255,255,255,.08);color:#fff;border:0;border-radius:999px;padding:5px 8px;font:500 11px var(--ob-mono);letter-spacing:.1em}
+.lg-place select option{background:#0b0c10}
+.lg-place button{background:none;border:0;color:#ffb28f;font:500 11px var(--ob-mono);letter-spacing:.14em;cursor:pointer;padding:4px 8px}

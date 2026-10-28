@@ -208,8 +208,8 @@ export async function GET(req: NextRequest) {
       displacement_cm: null,
       ...(type === 'storm' ? (() => {
         const w = Number(sp.get('wind')), pr = Number(sp.get('pres'));
-        let track: [number, number][] | undefined;
-        try { const t = JSON.parse(sp.get('track') ?? '[]'); if (Array.isArray(t)) track = t.filter((p: unknown) => Array.isArray(p) && isFinite(Number(p[0])) && isFinite(Number(p[1]))).slice(-12).map((p: number[]) => [Number(p[0]), Number(p[1])] as [number, number]); } catch { /* ignore */ }
+        let track: [number, number, number?][] | undefined;
+        try { const t = JSON.parse(sp.get('track') ?? '[]'); if (Array.isArray(t)) track = t.filter((p: unknown) => Array.isArray(p) && isFinite(Number(p[0])) && isFinite(Number(p[1]))).slice(-12).map((p: number[]) => (isFinite(Number(p[2])) ? [Number(p[0]), Number(p[1]), Number(p[2])] : [Number(p[0]), Number(p[1])]) as [number, number, number?]); } catch { /* ignore */ }
         return { wind_kts: sp.get('wind') && isFinite(w) ? w : null, pressure_mb: sp.get('pres') && isFinite(pr) ? pr : null, track };
       })() : {}),
       source: (sp.get('src') ?? 'Unknown').slice(0, 60), source_url: sp.get('url') ?? '', sources: [(sp.get('src') ?? 'Unknown').slice(0, 60)],

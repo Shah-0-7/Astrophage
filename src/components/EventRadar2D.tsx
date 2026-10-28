@@ -20,7 +20,7 @@ import { useStore } from '@/lib/store';
 import { TARGET_NODES, PASS_EPOCHS, BACKSCATTER_VALUES } from '@/lib/mockData';
 import type { PhaseFilterMode, PolVar, UnifiedFeature } from '@/lib/types';
 import { useSSEStream } from '@/lib/useSSEStream';
-import { filterByPlayback } from '@/lib/playbackFilter';
+import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import Link from 'next/link';
 
@@ -47,6 +47,8 @@ export default function EventRadar2D() {
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
   const setCoherenceThreshold = useStore(s => s.setCoherenceThreshold);
   const currentPassIndex = useStore(s => s.currentPassIndex);
+  const playbackWindow = useStore(s => s.playbackWindow);
+  const playbackAnchor = useStore(s => s.playbackAnchor);
   const lBandStatus = useStore(s => s.lBandStatus);
   const sBandStatus = useStore(s => s.sBandStatus);
   const setFlyToCoords = useStore(s => s.setFlyToCoords);
@@ -79,9 +81,9 @@ export default function EventRadar2D() {
     };
     all.sort((a, b) => getTs(b) - getTs(a));
     const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
-    const visible = filterByPlayback(all, getTs, progress);
+    const visible = filterByPlayback(all, getTs, progress, windowRange(playbackWindow, playbackAnchor));
     return visible.slice(0, 10);
-  }, [stream, currentPassIndex]);
+  }, [stream, currentPassIndex, playbackWindow, playbackAnchor]);
 
   const [eventsExpanded, setEventsExpanded] = useState(true);
 

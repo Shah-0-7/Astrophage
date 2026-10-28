@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { OutlineWordmark } from '@/components/ui/outline-wordmark';
 import { OutlineDefs } from '@/components/ui/outline-defs';
 import { RegionMap } from '@/components/observatory/region-map';
+import { StormOutlook } from '@/components/observatory/storm-outlook';
 import { fetchAllGlobalEvents, type GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, CAUSE_LABELS } from '@/lib/eventDirectoryTypes';
 import { stormOf } from '@/lib/stormScale';
@@ -153,12 +154,16 @@ function EventReportInner({ id }: { id: string }) {
 
             <aside className="rp-side">
               <div className="rp-map"><RegionMap event={e} className="rp-canvas" /></div>
+              {e.type === 'storm' ? (
+                <StormOutlook event={e} card className="rp-card rp-disp" />
+              ) : (
               <section className="rp-card rp-disp">
                 <h3>SURFACE DISPLACEMENT</h3>
                 <div className="rp-big">{disp.label}</div>
                 <p>{disp.note}</p>
                 <small>Modelled from magnitude and depth, not measured. Measured values will come from NISAR InSAR and GNSS once that pipeline is connected.</small>
               </section>
+              )}
               {disp.rupture && (
                 <section className="rp-card">
                   <h3>AREA COVERED (EST.)</h3>
