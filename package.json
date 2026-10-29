@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync:maplibre": "cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/",
+    "sync:maplibre": "node scripts/sync-maplibre.mjs",
     "predev": "npm run sync:maplibre",
     "prebuild": "npm run sync:maplibre",
     "dev": "next dev",
