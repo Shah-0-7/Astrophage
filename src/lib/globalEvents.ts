@@ -178,7 +178,7 @@ function sanitizeEvent(ev: any): GlobalEvent | null {
   } as GlobalEvent;
 }
 
-function sanitizeEvents(evs: GlobalEvent[]): GlobalEvent[] {
+export function sanitizeEvents(evs: GlobalEvent[]): GlobalEvent[] {
    
   return (evs as any[]).map(sanitizeEvent).filter((e): e is GlobalEvent => e !== null);
 }
@@ -347,16 +347,12 @@ async function fetchEONET(): Promise<GlobalEvent[]> {
 
 // ── GDACS tropical cyclones (via our proxy) ──────────────────
 
-async function fetchGDACS(): Promise<GlobalEvent[]> {
-  const cached = cacheGet<GlobalEvent[]>('gdacs');
-  if (cached) return cached;
-  const res = await fetch('/api/global-events/gdacs');
-  if (!res.ok) throw new Error(`GDACS ${res.status}`);
-   
-  const json: any = await res.json();
+/** Turns a GDACS tropical-cyclone event list (GeoJSON) into storm events. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function gdacsEventsFromJson(json: any): GlobalEvent[] {
   const events: GlobalEvent[] = [];
-   
-  for (const f of (json.features ?? []) as any[]) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const f of (json?.features ?? []) as any[]) {
     const p = f?.properties ?? {};
     const c = f?.geometry?.type === 'Point' ? f.geometry.coordinates : null;
     if (p.eventtype && p.eventtype !== 'TC') continue;
@@ -375,15 +371,29 @@ async function fetchGDACS(): Promise<GlobalEvent[]> {
       source: 'GDACS', source_url: p.url?.report ?? p.url?.details ?? 'https://www.gdacs.org', sources: ['GDACS'],
     });
   }
+  return events;
+}
+
+async function fetchGDACS(): Promise<GlobalEvent[]> {
+  const cached = cacheGet<GlobalEvent[]>('gdacs');
+  if (cached) return cached;
+  const res = await fetch('/api/global-events/gdacs');
+  if (!res.ok) throw new Error(`GDACS ${res.status}`);
+  const events = gdacsEventsFromJson(await res.json());
   cacheSet('gdacs', events);
   return sanitizeEvents(events);
+}
+
+/** Name-based identity of a storm, the same whichever feed reported it (ids differ between EONET and GDACS). */
+export function stormKey(e: { title: string }): string {
+  return e.title.toLowerCase().replace(/^(super |severe )?(tropical (cyclone|storm|depression)|hurricane|typhoon|cyclone)\s+/, '').replace(/[^a-z0-9]+/g, '').replace(/\d+$/, '');
 }
 
 /** EONET and GDACS both report the same storms: merge them by name, keeping the richer record. */
 export function mergeStorms(all: GlobalEvent[]): GlobalEvent[] {
   const storms = all.filter(e => e.type === 'storm');
   const rest = all.filter(e => e.type !== 'storm');
-  const key = (e: GlobalEvent) => e.title.toLowerCase().replace(/^(super |severe )?(tropical (cyclone|storm|depression)|hurricane|typhoon|cyclone)\s+/, '').replace(/[^a-z0-9]+/g, '').replace(/\d+$/, '');
+  const key = stormKey;
   const byName = new Map<string, GlobalEvent>();
   for (const e of storms) {
     const k = key(e) || e.id;

@@ -1,0 +1,9 @@
+# Copy to .dev.vars for `npm run cf:preview` (local Cloudflare runtime). Never commit .dev.vars.
+APP_URL=http://localhost:8787
+GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=
+# 32+ random characters, e.g. `openssl rand -base64 48`
+SESSION_SECRET=
+CRON_SECRET=
+RESEND_API_KEY=
+EMAIL_FROM=Astrophage <alerts@your-verified-domain.example>

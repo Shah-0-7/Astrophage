@@ -43,3 +43,8 @@ next-env.d.ts
 # caches
 /.npm-cache
 /.tmp
+
+# local secrets and Cloudflare build output
+.dev.vars
+.wrangler/
+.open-next/

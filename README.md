@@ -56,7 +56,10 @@ GDACS are merged by name.
 
 - **Watchlist and alerts** (bell in the top bar, or "Watch these" in the ledger): follow event types, a region, or a place, with a minimum
   magnitude or storm category. Matches from the last 48 hours appear in the panel, and browser notifications fire while the app is
-  open (feeds refresh every 5 minutes). Rules live in `localStorage`; there is no account or server, so no email or push when the app is closed.
+  open (feeds refresh every 5 minutes). Rules live in `localStorage`.
+- **Email alerts and Google sign-in** (optional, needs a Cloudflare deployment): sign in with Google, and a Cron Trigger checks the feeds every
+  10 minutes and emails you new matches even when the app is closed. Accounts, rules and the "already emailed" log live in D1; mail goes out through Resend.
+  Without that setup the app behaves exactly as before and the sign-in controls stay hidden. Setup: [docs/ALERTS_SETUP.md](docs/ALERTS_SETUP.md).
 - **Storm outlook**: a projected 72 h path, uncertainty cone and landfall estimate drawn on the storm's map and written up in the ledger and report.
   It is extrapolated from the storm's own recent track (`src/lib/stormForecast.ts`), **not** an official NHC/JTWC forecast, and is labelled as such.
 - **Radar replay**: 24H / 7D / ALL windows on the timeline sweep the loaded events through the chosen window.

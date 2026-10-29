@@ -17,6 +17,7 @@ import { TopBar, Timeline, type ObView } from './chrome';
 import './observatory.css';
 import { windowRange } from '@/lib/playbackFilter';
 import { useWatchlist } from '@/lib/useWatchlist';
+import { useAccount } from '@/lib/useAccount';
 import { WatchPanel } from './watch-panel';
 import './mobile.css'; // last, so its phone rules win over the component stylesheets
 
@@ -46,7 +47,8 @@ function Inner({ initialView }: { initialView: ObView }) {
   const [globeFocus, setGlobeFocus] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
   const { events, sourceHealth, refresh } = useGlobalEvents();
-  const watch = useWatchlist(events);
+  const account = useAccount();
+  const watch = useWatchlist(events, account);
 
   // Keep the feeds fresh for as long as the app is open: this is what makes alerts work.
   useEffect(() => {

@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "astrophage",
+  "main": "custom-worker.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "astrophage" }],
+
+  // Email alerts: accounts, rules and the "already emailed" log live in D1.
+  // Create it once with `npx wrangler d1 create astrophage`, paste the printed id below, then run `npm run cf:migrate`.
+  // See docs/ALERTS_SETUP.md for the full walkthrough (Google OAuth client, Resend, secrets).
+  "d1_databases": [
+    { "binding": "DB", "database_name": "astrophage", "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID", "migrations_dir": "migrations" }
+  ],
+
+  // The alert job runs every 10 minutes.
+  "triggers": { "crons": ["*/10 * * * *"] },
+
+  // Non-secret settings. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET, RESEND_API_KEY, CRON_SECRET) are set with `wrangler secret put`.
+  "vars": {
+    "APP_URL": "https://REPLACE-WITH-YOUR-SITE-URL",
+    "GOOGLE_CLIENT_ID": "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID",
+    "EMAIL_FROM": "Astrophage <alerts@your-verified-domain.example>"
+  }
+}

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GlobalEvent } from '@/lib/globalEvents';
+import type { Account } from '@/lib/useAccount';
 import {
-  alertText, findAlerts, loadNotified, loadRules, loadSeen, newRule, saveNotified, saveRules, saveSeen, shouldNotify,
+  alertText, findAlerts, loadNotified, loadRules, loadSeen, mergeRules, newRule, saveNotified, saveRules, saveSeen, shouldNotify,
   type WatchAlert, type WatchRule,
 } from '@/lib/watchlist';
 
@@ -19,7 +20,7 @@ function notifySupport(): NotifyState {
  * Watch rules + alerts for the events currently loaded. Everything lives in this browser: rules in
  * localStorage, alerts computed from the live feed, and browser notifications only while the app is open.
  */
-export function useWatchlist(events: GlobalEvent[]) {
+export function useWatchlist(events: GlobalEvent[], account?: Account) {
   const [rules, setRules] = useState<WatchRule[]>([]);
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
@@ -42,14 +43,47 @@ export function useWatchlist(events: GlobalEvent[]) {
   const alerts: WatchAlert[] = useMemo(() => findAlerts(rules, events, now), [rules, events, now]);
   const unread = useMemo(() => alerts.filter(a => !seen.has(a.event.id)), [alerts, seen]);
 
+  // The rule list is kept in this browser and, when signed in, saved to the account too.
+  const rulesRef = useRef<WatchRule[]>([]);
+  useEffect(() => { rulesRef.current = rules; }, [rules]);
+  const accountRef = useRef(account);
+  useEffect(() => { accountRef.current = account; }, [account]);
+
+  const commit = useCallback((next: WatchRule[]) => {
+    rulesRef.current = next;
+    setRules(next); saveRules(next);
+    if (accountRef.current?.user) void accountRef.current.pushRules(next);
+  }, []);
   const addRule = useCallback((partial: Partial<WatchRule>) => {
     const rule = newRule(partial);
-    setRules(prev => { const next = [...prev, rule]; saveRules(next); return next; });
+    commit([...rulesRef.current, rule]);
     return rule;
-  }, []);
-  const removeRule = useCallback((id: string) => {
-    setRules(prev => { const next = prev.filter(r => r.id !== id); saveRules(next); return next; });
-  }, []);
+  }, [commit]);
+  const removeRule = useCallback((id: string) => { commit(rulesRef.current.filter(r => r.id !== id)); }, [commit]);
+
+  // First time we see a signed-in user: combine this browser's rules with the account's, and save the result.
+  const syncedFor = useRef<string | null>(null);
+  const userId = account?.user?.id ?? null;
+  useEffect(() => {
+    if (!account?.loaded || !ready) return;
+    if (!userId) { syncedFor.current = null; return; }
+    if (syncedFor.current === userId) return;
+    syncedFor.current = userId;
+    const merged = mergeRules(account.serverRules, rulesRef.current);
+    rulesRef.current = merged; setRules(merged); saveRules(merged);
+    if (merged.length !== account.serverRules.length) void account.pushRules(merged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.loaded, userId, ready]);
+
+  // Signing out or deleting the account leaves nothing of it behind on this device.
+  const hadUser = useRef(false);
+  useEffect(() => {
+    if (userId) { hadUser.current = true; return; }
+    if (hadUser.current && account?.loaded) { hadUser.current = false; rulesRef.current = []; setRules([]); saveRules([]); }
+  }, [userId, account?.loaded]);
+
+  // Returning from Google opens the panel so the outcome is visible.
+  useEffect(() => { if (account?.returned) setOpen(true); }, [account?.returned]);
   const markRead = useCallback((ids?: string[]) => {
     setSeen(prev => {
       const next = new Set(prev);
@@ -94,6 +128,6 @@ export function useWatchlist(events: GlobalEvent[]) {
     } catch { /* notifications blocked in this context */ }
   }, [alerts, notify, ready, events.length]);
 
-  return { rules, alerts, unread, addRule, removeRule, markRead, open, setOpen, notify, enableNotifications };
+  return { rules, alerts, unread, addRule, removeRule, markRead, open, setOpen, notify, enableNotifications, account };
 }
 export type Watchlist = ReturnType<typeof useWatchlist>;

@@ -54,3 +54,20 @@ describe('shouldNotify', () => {
     expect(shouldNotify(r, ev({ time: NOW + 60_000 }))).toBe(true);
   });
 });
+
+import { mergeRules, MAX_RULES } from '@/lib/watchlist';
+describe('mergeRules', () => {
+  it('adds local rules the account lacks and skips duplicates by content or id', () => {
+    const a = newRule({ name: 'A', minMagnitude: 6 });
+    const dupContent = { ...newRule({ name: 'same thing' }), minMagnitude: 6 };
+    const dupId = { ...newRule({ minMagnitude: 7 }), id: a.id };
+    const fresh = newRule({ types: ['storm'], minCategory: 4 });
+    expect(mergeRules([a], [dupContent, dupId, fresh]).map(r => r.id)).toEqual([a.id, fresh.id]);
+  });
+  it('treats type order as irrelevant and respects the cap', () => {
+    const x = newRule({ types: ['storm', 'volcanic'] }), y = newRule({ types: ['volcanic', 'storm'] });
+    expect(mergeRules([x], [y])).toHaveLength(1);
+    const many = Array.from({ length: MAX_RULES + 5 }, (_, i) => newRule({ minMagnitude: (i % 8) + 0.5, minCategory: i % 6, region: i < 12 ? 'europe' : '' }));
+    expect(mergeRules([], many).length).toBeLessThanOrEqual(MAX_RULES);
+  });
+});

@@ -6,6 +6,7 @@ import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, REGIONS } from '@/lib/eventDirectoryTypes';
 import { describeRule, type WatchRule } from '@/lib/watchlist';
 import type { Watchlist } from '@/lib/useWatchlist';
+import type { Account } from '@/lib/useAccount';
 import type { Place } from '@/lib/placeSearch';
 import { PlaceSuggest } from './place-suggest';
 import { stormOf } from '@/lib/stormScale';
@@ -147,15 +148,88 @@ export function WatchPanel({ watch }: { watch: Watchlist }) {
           </ul>
         </section>
 
+        {watch.account && <EmailAlerts account={watch.account} />}
+
         <section className="wp-notify">
-          <h3>NOTIFICATIONS</h3>
+          <h3>BROWSER NOTIFICATIONS</h3>
           {watch.notify === 'granted' && <p>Browser notifications are on. You are notified when a new match appears while Astrophage is open in a tab.</p>}
           {watch.notify === 'default' && <p>Get a desktop notification when a new match appears. <button type="button" className="wp-primary" onClick={() => void watch.enableNotifications()}>TURN ON</button></p>}
           {watch.notify === 'denied' && <p>Notifications are blocked for this site. Allow them in your browser&apos;s site settings to turn them on.</p>}
           {watch.notify === 'unsupported' && <p>This browser or context does not support notifications. Alerts still appear in this panel.</p>}
-          <p className="wp-fine">Rules are stored in this browser only, and feeds are checked every 5 minutes while the app is open. Email or phone push when the app is closed needs an account and a server, which this version does not have.</p>
+          <p className="wp-fine">Feeds are checked every 5 minutes while the app is open. {watch.account?.user ? 'Your rules are saved to your account and in this browser.' : 'Without an account, rules are stored in this browser only.'}</p>
         </section>
       </div>
     </aside>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.2 5.6c4.3-3.9 7.1-9.7 7.1-17z" />
+      <path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.2-5.6c-2 1.4-4.6 2.2-8.7 2.2-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  );
+}
+
+/** Email alerts: Google sign-in, the on/off switch, a test message, and account removal. */
+function EmailAlerts({ account }: { account: Account }) {
+  const [confirming, setConfirming] = useState(false);
+  if (!account.loaded) return null;
+  const { user, busy, notice } = account;
+  const msg = notice && <p className="wp-note" data-kind={notice.kind} role={notice.kind === 'error' ? 'alert' : 'status'}>{notice.text}</p>;
+
+  if (!account.configured) {
+    return (
+      <section className="wp-notify">
+        <h3>EMAIL ALERTS</h3>
+        <p>Email alerts are not set up on this deployment yet, so rules are kept in this browser only.</p>
+        {msg}
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="wp-notify">
+        <h3>EMAIL ALERTS</h3>
+        <p>Sign in to get an email when something matches your rules, even when Astrophage is closed. Your rules follow you across devices.</p>
+        <button type="button" className="wp-google" onClick={account.signIn}><GoogleMark /> CONTINUE WITH GOOGLE</button>
+        <p className="wp-fine">We store your Google email and name, your rules, and which events we have already emailed you about. Nothing else from your Google account. <Link href="/privacy">Privacy</Link></p>
+        {msg}
+      </section>
+    );
+  }
+
+  return (
+    <section className="wp-notify">
+      <h3>EMAIL ALERTS</h3>
+      <div className="wp-who">
+        {user.picture ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={user.picture} alt="" width={28} height={28} referrerPolicy="no-referrer" /> : <i aria-hidden="true">{(user.name || user.email).slice(0, 1).toUpperCase()}</i>}
+        <span><b>{user.name || user.email}</b><small>{user.email}</small></span>
+        <button type="button" disabled={busy === 'signout'} onClick={() => void account.signOut()}>SIGN OUT</button>
+      </div>
+      <label className="wp-switch">
+        <input type="checkbox" role="switch" checked={user.emailAlerts} disabled={busy === 'email'} onChange={e => void account.setEmailAlerts(e.target.checked)} />
+        <span>Email me when something matches</span>
+      </label>
+      {user.emailAlerts && !account.emailConfigured && <p className="wp-note" data-kind="error">The email service is not configured on this deployment, so nothing can be sent yet.</p>}
+      {user.emailAlerts && (
+        <p>One email per check, at most every 10 minutes, listing new matches. Each event is only emailed once. <button type="button" className="wp-primary" disabled={busy === 'test' || !account.emailConfigured} onClick={() => void account.sendTest()}>{busy === 'test' ? 'SENDING…' : 'SEND A TEST'}</button></p>
+      )}
+      {msg}
+      <div className="wp-danger">
+        {!confirming ? (
+          <button type="button" onClick={() => setConfirming(true)}>DELETE MY ACCOUNT &amp; DATA</button>
+        ) : (
+          <span>Delete your account, rules and email history?
+            <button type="button" disabled={busy === 'delete'} onClick={() => void account.deleteAccount().then(() => setConfirming(false))}>YES, DELETE</button>
+            <button type="button" onClick={() => setConfirming(false)}>CANCEL</button>
+          </span>
+        )}
+      </div>
+    </section>
   );
 }

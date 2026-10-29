@@ -1,6 +1,6 @@
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { classifyStorm } from '@/lib/stormScale';
-import { getRegion } from '@/lib/eventDirectoryTypes';
+import { getRegion, REGIONS } from '@/lib/eventDirectoryTypes';
 
 /**
  * A watch rule: "tell me when something like this happens". Every field narrows the match; empty = any.
@@ -117,4 +117,62 @@ export function alertText(e: GlobalEvent): { title: string; body: string } {
   }
   const label = e.source === 'Smithsonian GVP' ? 'VEI' : 'M';
   return { title: e.magnitude != null ? `${label} ${e.source === 'Smithsonian GVP' ? Math.round(e.magnitude) : e.magnitude.toFixed(1)}` : e.type, body: e.title };
+}
+
+export const MAX_RULES = 20;
+const EVENT_TYPES: EventType[] = ['tectonic', 'volcanic', 'landslide', 'cryosphere', 'subsidence', 'mining', 'induced_seismicity', 'tsunami', 'storm'];
+
+/**
+ * Clean up rules from an untrusted source (the request body, or stored JSON). Unknown types and regions are dropped,
+ * numbers clamped, strings trimmed; entries that are not rules at all are skipped. At most MAX_RULES are kept.
+ */
+export function sanitizeRules(input: unknown): WatchRule[] {
+  if (!Array.isArray(input)) return [];
+  const out: WatchRule[] = [];
+  const seen = new Set<string>();
+  for (const raw of input) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const num = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
+    let at: WatchRule['at'] = null;
+    const a = r.at as Record<string, unknown> | null | undefined;
+    if (a && typeof a === 'object' && typeof a.lat === 'number' && typeof a.lon === 'number' && Math.abs(a.lat) <= 90 && Math.abs(a.lon) <= 180) {
+      at = { lat: a.lat, lon: a.lon, name: String(a.name ?? '').slice(0, 60), radiusKm: Math.round(num(a.radiusKm, 10, 5000)) };
+    }
+    let id = typeof r.id === 'string' && /^[\w-]{1,40}$/.test(r.id) ? r.id : '';
+    if (!id || seen.has(id)) id = newRule({}).id;
+    seen.add(id);
+    out.push({
+      id,
+      name: String(r.name ?? '').slice(0, 60),
+      types: Array.isArray(r.types) ? Array.from(new Set(r.types.filter((t): t is EventType => EVENT_TYPES.includes(t as EventType)))) : [],
+      region: typeof r.region === 'string' && REGIONS.some(g => g.id === r.region) ? r.region : '',
+      minMagnitude: Math.round(num(r.minMagnitude, 0, 10) * 10) / 10,
+      minCategory: Math.round(num(r.minCategory, 0, 5)),
+      at,
+      createdAt: typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) ? r.createdAt : Date.now(),
+    });
+    if (out.length >= MAX_RULES) break;
+  }
+  return out;
+}
+
+/** What a rule matches, ignoring its id and name: two rules with the same signature are duplicates. */
+export function ruleSignature(r: WatchRule): string {
+  return JSON.stringify([[...r.types].sort(), r.region, r.minMagnitude, r.minCategory, r.at ? [r.at.lat, r.at.lon, r.at.radiusKm] : null]);
+}
+
+/**
+ * Combine the rules saved on an account with the ones already in this browser (the person built a list, then signed in).
+ * Account rules come first; a local rule is added unless an equivalent one is already there. Capped at MAX_RULES.
+ */
+export function mergeRules(account: WatchRule[], local: WatchRule[]): WatchRule[] {
+  const out = [...account];
+  const sigs = new Set(out.map(ruleSignature)), ids = new Set(out.map(r => r.id));
+  for (const r of local) {
+    if (out.length >= MAX_RULES) break;
+    if (sigs.has(ruleSignature(r)) || ids.has(r.id)) continue;
+    sigs.add(ruleSignature(r)); ids.add(r.id); out.push(r);
+  }
+  return out;
 }
