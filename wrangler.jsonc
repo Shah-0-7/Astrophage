@@ -20,7 +20,7 @@
   // Non-secret settings. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET, RESEND_API_KEY, CRON_SECRET) are set with `wrangler secret put`.
   "vars": {
     "APP_URL": "https://astrophage.shah-7.workers.dev",
-    "GOOGLE_CLIENT_ID": "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_ID": "740458867159-8b6b9vnu42ib2a22qtsmugurnut1sp32.apps.googleusercontent.com",
     "EMAIL_FROM": "Astrophage <onboarding@resend.dev>"
   }
 }
