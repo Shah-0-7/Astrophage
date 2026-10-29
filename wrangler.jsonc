@@ -11,7 +11,7 @@
   // Create it once with `npx wrangler d1 create astrophage`, paste the printed id below, then run `npm run cf:migrate`.
   // See docs/ALERTS_SETUP.md for the full walkthrough (Google OAuth client, Resend, secrets).
   "d1_databases": [
-    { "binding": "DB", "database_name": "astrophage", "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "astrophage", "database_id": "5d4e784f-00e6-4dbb-a6ac-c53c9d749dc3", "migrations_dir": "migrations" }
   ],
 
   // The alert job runs every 10 minutes.
