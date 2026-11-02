@@ -1,16 +1,19 @@
 /**
  * ============================================================
- * NISAR SAR/InSAR Geospatial Telemetry Platform – Core Types
+ * Astrophage – Core Types
  * ============================================================
- * Unified data contract for all visual components & the
- * centralized Zustand store.  Replacing mock data with real
- * NISAR HDF5 / GeoTIFF feeds only requires conforming here.
+ * Shared types for the Globe, Radar and Topo views and the
+ * Zustand store.  Live hazard events use GlobalEvent
+ * (lib/globalEvents.ts).  The scenario, pass-epoch and target-node
+ * types below back the simulated NISAR demo layer (lib/mockData.ts);
+ * real NISAR HDF5 / GeoTIFF products would need to conform to them.
  * ============================================================
  */
 
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson';
 
 /* ── View / Navigation Modes ────────────────────────────────── */
+// The observatory's three views: Globe = GLOBAL_SCHEMATIC, Radar = EVENT_RADAR_2D, Topo = TOPO_CORE_3D.
 export type ViewMode = 'GLOBAL_SCHEMATIC' | 'EVENT_RADAR_2D' | 'TOPO_CORE_3D';
 
 /* ── Target deformation classification ─────────────────────── */
@@ -39,7 +42,7 @@ export interface InstrumentLayers {
   coherenceMask: boolean;
 }
 
-/* ── Global target node (for GLOBAL_SCHEMATIC matrix) ────────── */
+/* ── Demo target node (simulated site; see mockData.ts) ──────── */
 export interface TargetNode {
   id: string;                        // e.g. "TC-89"
   label: string;                     // e.g. "SAN ANDREAS"

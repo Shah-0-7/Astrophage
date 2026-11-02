@@ -2,8 +2,10 @@
  * ============================================================
  * Navbar – Top navigation bar
  * ============================================================
- * Glassmorphism bar with NISAR branding, base-layer switcher,
+ * Glassmorphism bar with Astrophage branding, base-layer switcher,
  * and scenario quick-select pills.
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  * ============================================================
  */
 
@@ -72,7 +74,7 @@ export default function Navbar() {
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-wider gradient-text leading-none">
-                NISAR EARTH WATCH
+                ASTROPHAGE
               </h1>
               <p className="text-[10px] text-[var(--text-muted)] tracking-widest font-mono mt-0.5">
                 THE WALTZ OF SURFACE CHANGE

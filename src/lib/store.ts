@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * NISAR SAR Telemetry Platform – Centralized Zustand Store
+ * Astrophage – Centralized Zustand Store
  * ============================================================
  * Single source of truth for ALL app state. WebGL shader
  * uniforms, telemetry panels, and UI state are all driven

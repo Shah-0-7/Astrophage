@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 import EventsChrome from './events-chrome';
 
 export const metadata: Metadata = {
-  title: 'Event Directory – NISAR Earth Watch',
+  title: 'Event Directory',
   description: 'Browse, search and filter real-time global geophysical events: earthquakes, volcanic eruptions, landslides, cryosphere events, subsidence, mining and induced seismicity.',
 };
 

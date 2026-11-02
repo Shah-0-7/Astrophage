@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 /* ============================================================
- * NISAR SAR/InSAR Geospatial Telemetry Platform
- * "Aerospace Tactical" Design System
+ * Astrophage – "Aerospace Tactical" Design System
  *
  * Theme: High-contrast dark monochrome zinc (#18181b),
  * pure-white telemetry text, radar crimson (#ef4444) for
- * critical indicators.  No consumer-grade light modes.
+ * critical indicators.  An off-white light theme is available
+ * via [data-theme="light"].
  * Google Fonts loaded via <link> in layout.tsx.
  * ============================================================ */
 

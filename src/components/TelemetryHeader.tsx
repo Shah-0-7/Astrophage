@@ -5,6 +5,8 @@
  * Displays real-time satellite parameters from CelesTrak,
  * UTC timestamp, and payload health.
  * Persists across all view modes.
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  * ============================================================
  */
 

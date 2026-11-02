@@ -5,6 +5,9 @@
  * Prominent bottom-of-screen slider with play/pause, speed
  * control, and date markers.  Drives the entire app's temporal
  * state through the Zustand store.
+ * The live timeline is `Timeline` in observatory/chrome.tsx.
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  * ============================================================
  */
 

@@ -4,6 +4,8 @@
  * ============================================================
  * Glassmorphism floating side panel with data charts,
  * educational content, and compare toggle.
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  * ============================================================
  */
 

@@ -6,6 +6,8 @@
  * Displays cumulative displacement (Δd ACCUM) and residual
  * error relative to baseline epoch P01.
  * Supports 1×, 2×, 5× variable speed playback.
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  * ============================================================
  */
 

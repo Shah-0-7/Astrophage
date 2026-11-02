@@ -1,9 +1,10 @@
 /**
  * ============================================================
- * NISAR SAR Telemetry Platform – Target Node Data
+ * Astrophage – Simulated NISAR demo data
  * ============================================================
- * Global target matrix nodes for the GLOBAL_SCHEMATIC view.
- * 12-day pass epochs for the time-series scrubber.
+ * Target nodes, 12-day pass epochs and scenario overlays used by
+ * the Radar and Topo views and the pass timeline.
+ * This is SIMULATED data, not live NISAR products.
  * ============================================================
  */
 

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * NISAR Earth Watch – Data Service Layer
+ * Astrophage – NISAR demo Data Service Layer
  * ============================================================
  * Abstracts all data fetching behind a clean API.  To switch
  * from mock data to real NISAR HDF5/GeoTIFF tile servers,

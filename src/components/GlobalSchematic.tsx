@@ -4,6 +4,9 @@
  * ============================================================
  * Interactive world target matrix with radar node beacons,
  * telemetry cards, and category filter panel.
+ * Superseded by GlobalSchematicGlobe (the live Globe view).
+ * NOTE: not mounted by the current observatory shell (src/components/observatory).
+ * Kept from the earlier layout; nothing imports it.
  *
  * API surface implemented:
  *   filterTargetMatrix(category)
