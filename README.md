@@ -84,7 +84,7 @@ Be careful when quoting numbers from the app.
 - **Storm category** is computed from maximum sustained wind with the Saffir–Simpson thresholds. Storms with no reported
   wind show "Not reported" rather than a guess.
 - **The NISAR scenario overlays, pass timeline, coherence and displacement readouts on the Radar and Topo views are
-  simulated demo data** (`src/lib/mockData.ts`), marked **DEMO · SIMULATED** in the UI. They are not live NISAR products.
+  simulated demo data** (`src/lib/mockData.ts`), marked **ESTIMATED** in the UI. They are not live NISAR products.
   The **NISAR scenes (real)** layer and the **NISAR observations** blocks are the real ones.
 
 ## Environment variables

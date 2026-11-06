@@ -91,7 +91,7 @@ export function NisarCoverage({ event, compact = false, className = '' }: { even
 
   return (
     <section className={cls} aria-label="NISAR observations">
-      <h3>NISAR OBSERVATIONS <span className="nc-tag">NASA CMR · REAL RECORDS</span></h3>
+      <h3>NISAR OBSERVATIONS</h3>
       {body}
       <small className="nc-fine">
         Catalogue records, not measurements: this app does not download or process the files, and the displacement estimate above is still modelled.

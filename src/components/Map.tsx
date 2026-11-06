@@ -510,7 +510,7 @@ export default function MapComponent() {
           <div style="font-weight:700;letter-spacing:.14em;font-size:9px;color:${p.insar ? '#fbbf24' : '#5eead4'};">NISAR ${p.product}${p.insar ? ' · INSAR' : ''} · ${String(p.maturity).toUpperCase()}</div>
           <div style="color:white;margin:2px 0;">${p.productName}</div>
           <div style="color:rgba(255,255,255,.6);font-size:9px;">${d(p.start)}${p.track != null ? ` · track ${p.track}` : ''}${p.frame != null ? ` · frame ${p.frame}` : ''}</div>${pair}
-          <div style="color:rgba(255,255,255,.35);font-size:8px;margin-top:3px;letter-spacing:.1em;">REAL RECORD · NASA CMR</div></div>`,
+          <div style="color:rgba(255,255,255,.35);font-size:8px;margin-top:3px;letter-spacing:.1em;">NISAR RECORD</div></div>`,
         style: { backgroundColor: 'rgba(9,9,11,.92)', border: '1px solid rgba(255,255,255,.2)', borderRadius: '2px', color: 'white', padding: '10px 12px' },
       };
     }
