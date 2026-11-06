@@ -23,6 +23,7 @@ import { useSSEStream } from '@/lib/useSSEStream';
 import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import Link from 'next/link';
+import { DemoBadge } from '@/components/ui/demo-badge';
 
 // Dynamically import the Deck.gl map to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/Map'), {
@@ -354,7 +355,7 @@ export default function EventRadar2D() {
                 <div className="status-dot nominal" />
                 <span className="panel-label text-white">SAR TELEMETRY</span>
               </div>
-              <span className="panel-label">NISAR L-BAND</span>
+              <DemoBadge />
             </div>
 
         {/* Displacement + Coherence */}

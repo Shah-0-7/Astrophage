@@ -14,6 +14,7 @@
 
 'use client';
 
+import { DemoBadge } from '@/components/ui/demo-badge';
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
@@ -560,7 +561,7 @@ export default function TopoCore3D() {
 
         {/* Pass telemetry */}
         <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">ACTIVE PASS</p>
+          <p className="panel-label mb-2 flex items-center gap-2">ACTIVE PASS <DemoBadge /></p>
           <p className="font-mono text-[14px] font-700 text-white">{currentPass?.label ?? '—'}</p>
           <p className="font-mono text-[9px] text-white/40 mt-0.5">
             {currentPass ? new Date(currentPass.date).toISOString().slice(0, 10) : '--'}

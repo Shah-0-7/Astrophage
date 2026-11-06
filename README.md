@@ -45,6 +45,7 @@ CI (`.github/workflows/ci.yml`) runs typecheck, lint and tests on every push to 
 | Smithsonian GVP | Volcanic eruptions (VEI) | `/api/global-events/gvp`, `/api/volcanism` |
 | NASA COOLR, HiQuake | Landslide catalogue and human-induced seismicity (static snapshots) | `/api/global-events/coolr`, `/hiquake` |
 | CelesTrak | NISAR orbital elements | `/api/orbit` |
+| NASA CMR (ASF DAAC) | Real NISAR scene records and InSAR products (GUNW, GOFF, RUNW, RIFG, ROFF); OPERA DISP-S1 coverage hint | `/api/nisar/granules`, `/api/nisar/coverage`, `/api/nisar/status` |
 | PTWC, NSIDC, EarthScope, Copernicus | Tsunami, sea-ice extent, GNSS stations, Sentinel-1 | `/api/tsunami`, `/cryosphere`, `/gnss`, `/sentinel` |
 | Natural Earth (bundled) | Land, borders, place names for the radar basemap | `src/lib/worldVector.ts`, `src/data/places.json` |
 
@@ -60,6 +61,10 @@ GDACS are merged by name.
 - **Email alerts and Google sign-in** (optional, needs a Cloudflare deployment): sign in with Google, and a Cron Trigger checks the feeds every
   10 minutes and emails you new matches even when the app is closed. Accounts, rules and the "already emailed" log live in D1; mail goes out through Resend.
   Without that setup the app behaves exactly as before and the sign-in controls stay hidden. Setup: [docs/ALERTS_SETUP.md](docs/ALERTS_SETUP.md).
+- **Real NISAR data** (NASA CMR, no login): the radar's **Layers → NISAR scenes (real)** switch draws the footprints of what NISAR observed in the
+  last 14 days for the area in view (amber = InSAR products). Every earthquake, volcano and landslide report and ledger row has a
+  **NISAR observations** block: how many times NISAR has imaged the spot, and which interferograms pair a date before and after the event.
+  These are catalogue records. See [docs/NISAR_DATA.md](docs/NISAR_DATA.md) for what is and is not measured.
 - **Storm outlook**: a projected 72 h path, uncertainty cone and landfall estimate drawn on the storm's map and written up in the ledger and report.
   It is extrapolated from the storm's own recent track (`src/lib/stormForecast.ts`), **not** an official NHC/JTWC forecast, and is labelled as such.
 - **Radar replay**: 24H / 7D / ALL windows on the timeline sweep the loaded events through the chosen window.
@@ -74,11 +79,13 @@ Be careful when quoting numbers from the app.
 - **Earthquake, volcano, storm and landslide records** come straight from the sources above.
 - **Surface displacement for earthquakes is modelled**, not measured: rupture size and slip come from Wells & Coppersmith
   (1994) scaling and Hanks & Kanamori moment relations, from magnitude and depth only. It is always labelled
-  "modelled". Measured displacement needs InSAR or GNSS processing, which is not yet connected.
+  "modelled". Measured displacement needs InSAR or GNSS processing, which is not yet connected: the app lists which real
+  NISAR interferograms exist for an event but does not download or unwrap them.
 - **Storm category** is computed from maximum sustained wind with the Saffir–Simpson thresholds. Storms with no reported
   wind show "Not reported" rather than a guess.
 - **The NISAR scenario overlays, pass timeline, coherence and displacement readouts on the Radar and Topo views are
-  simulated demo data** (`src/lib/mockData.ts`). They are not live NISAR products.
+  simulated demo data** (`src/lib/mockData.ts`), marked **DEMO · SIMULATED** in the UI. They are not live NISAR products.
+  The **NISAR scenes (real)** layer and the **NISAR observations** blocks are the real ones.
 
 ## Environment variables
 

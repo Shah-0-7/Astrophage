@@ -30,6 +30,7 @@ import { buildSeismicHeatmapLayer } from '@/components/map-layers/SeismicHeatmap
 import { buildKinematicVectorLayers } from '@/components/map-layers/KinematicVectorLayer';
 import { buildTemporalDecayLayers } from '@/components/map-layers/TemporalDecayLayer';
 import type { MapLayerConfig } from '@/lib/types';
+import { useNisarScenes } from '@/lib/useNisarScenes';
 import { setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTheme } from '@/lib/ThemeProvider';
@@ -210,11 +211,16 @@ export default function MapComponent() {
     temporalDecay:     true,
     gnssStations:      false,
     sentinelSwaths:    false,
+    nisarScenes:       false,
     volcanismAlerts:   true,
     cryosphereExtent:  false,
     tsunamiZones:      true,
   });
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
+
+  // Real NISAR scene footprints (NASA CMR) for the area in view, only while that layer is switched on.
+  const [viewBox, setViewBox] = useState<[number, number, number, number] | null>(null);
+  const nisar = useNisarScenes(layerConfig.nisarScenes, viewBox);
 
   // MapLibre map ref for programmatic flyTo
   const mapRef = useRef<MapRef>(null);
@@ -341,7 +347,19 @@ export default function MapComponent() {
         visible:   layerConfig.temporalDecay,
       }),
 
-      // ── NISAR InSAR scenario overlay ────────────────────────
+      // ── Real NISAR scenes from NASA CMR (footprints of what NISAR observed in the last 14 days) ──
+      ...(layerConfig.nisarScenes && nisar.scenes ? [new GeoJsonLayer({
+        id: 'nisar-real-scenes',
+        data: nisar.scenes as any,
+        pickable: true,
+        stroked: true,
+        filled: true,
+        getFillColor: (f: any) => (f.properties.insar ? [251, 191, 36, 30] : [94, 234, 212, 20]) as [number, number, number, number],
+        getLineColor: (f: any) => (f.properties.insar ? [251, 191, 36, 210] : [94, 234, 212, 170]) as [number, number, number, number],
+        lineWidthMinPixels: 1,
+      })] : []),
+
+      // ── NISAR InSAR scenario overlay (SIMULATED demo scenarios) ────────────────────────
       ...(activeNodeId ? [
         new GeoJsonLayer({
           id: `nisar-insar-${activeScenario.id}-${phaseFilterMode}`,
@@ -477,12 +495,25 @@ export default function MapComponent() {
         }),
       ] : []),
     ];
-  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, playbackWindow, playbackAnchor, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom]);
+  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, playbackWindow, playbackAnchor, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom, nisar.scenes]);
 
 
   // Stable tooltip callback — memoized so DeckGLOverlay doesn't rebuild each render
   const getTooltip = useCallback(({ object }: any) => {
     if (!object) return null;
+    if (object.properties && typeof object.properties.productName === 'string' && typeof object.properties.maturity === 'string') {
+      const p = object.properties as Record<string, any>;
+      const d = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+      const pair = p.pairReference && p.pairSecondary ? `<div>Pair: ${new Date(p.pairReference).toISOString().slice(0, 10)} → ${new Date(p.pairSecondary).toISOString().slice(0, 10)}</div>` : '';
+      return {
+        html: `<div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
+          <div style="font-weight:700;letter-spacing:.14em;font-size:9px;color:${p.insar ? '#fbbf24' : '#5eead4'};">NISAR ${p.product}${p.insar ? ' · INSAR' : ''} · ${String(p.maturity).toUpperCase()}</div>
+          <div style="color:white;margin:2px 0;">${p.productName}</div>
+          <div style="color:rgba(255,255,255,.6);font-size:9px;">${d(p.start)}${p.track != null ? ` · track ${p.track}` : ''}${p.frame != null ? ` · frame ${p.frame}` : ''}</div>${pair}
+          <div style="color:rgba(255,255,255,.35);font-size:8px;margin-top:3px;letter-spacing:.1em;">REAL RECORD · NASA CMR</div></div>`,
+        style: { backgroundColor: 'rgba(9,9,11,.92)', border: '1px solid rgba(255,255,255,.2)', borderRadius: '2px', color: 'white', padding: '10px 12px' },
+      };
+    }
     if ('magnitude' in object) {
       const eq = object as USGSEarthquake;
       return {
@@ -721,9 +752,15 @@ export default function MapComponent() {
         initialViewState={initialViewState}
         onLoad={() => {
           const z = mapRef.current?.getZoom();
+          const lb = mapRef.current?.getBounds();
+          if (lb) setViewBox([lb.getWest(), lb.getSouth(), lb.getEast(), lb.getNorth()]);
           if (typeof z === 'number') setLabelZoom(Math.round(z * 4) / 4);
           const c = pendingFly.current;
           if (c) { pendingFly.current = null; doFly(c); setFlyToCoords(null); }
+        }}
+        onMoveEnd={(evt) => {
+          const b = evt.target.getBounds();
+          setViewBox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
         }}
         onZoom={(evt) => {
           // Only fire a React state update when crossing the heatmap zoom threshold
@@ -1068,6 +1105,7 @@ export default function MapComponent() {
               { key: 'volcanismAlerts',  label: 'VOLCANISM',          color: '#f97316' },
               { key: 'tsunamiZones',     label: 'TSUNAMI ZONES',      color: '#60a5fa' },
               { key: 'cryosphereExtent', label: 'CRYOSPHERE',         color: '#7dd3fc' },
+              { key: 'nisarScenes',      label: 'NISAR SCENES (REAL)', color: '#5eead4' },
             ] as { key: keyof MapLayerConfig; label: string; color: string }[]).map(({ key, label, color }) => (
               <button
                 key={key}
@@ -1095,6 +1133,14 @@ export default function MapComponent() {
                 </span>
               </button>
             ))}
+            {layerConfig.nisarScenes && (
+              <div className="font-mono" role="status" style={{ padding: '2px 12px 0 30px', fontSize: 8, letterSpacing: '0.08em', color: nisar.status === 'error' ? '#fca5a5' : 'rgba(255,255,255,0.45)', maxWidth: 200 }}>
+                {nisar.status === 'zoom' && 'Zoom in to load NISAR scenes (last 14 days).'}
+                {nisar.status === 'loading' && 'Loading NISAR scenes…'}
+                {nisar.status === 'error' && 'NASA catalogue not responding.'}
+                {nisar.status === 'ok' && (nisar.count === 0 ? 'No NISAR scenes in view in the last 14 days.' : `${nisar.count} scene${nisar.count === 1 ? '' : 's'} in view${nisar.truncated ? ' (capped, zoom in)' : ''}. Amber = InSAR products.`)}
+              </div>
+            )}
             {/* SSE status footer */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 6, padding: '5px 12px 2px' }}>
               <span className="font-mono" style={{ fontSize: 8, color: stream.connected ? '#4ade80' : '#ef4444', letterSpacing: '0.12em' }}>

@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { PASS_EPOCHS } from '@/lib/mockData';
 import { useNISARData } from '@/lib/useNISARData';
+import { DemoBadge } from '@/components/ui/demo-badge';
 
 const SPEED_OPTIONS = [1, 2, 5] as const;
 const TOTAL_PASSES = PASS_EPOCHS.length;     // 18
@@ -142,6 +143,7 @@ export default function PassScrubber() {
           <span className="hidden md:inline font-mono text-[8px] tracking-wider px-2 py-0.5 rounded border border-[var(--border-zinc)] text-emerald-500 bg-emerald-500/10">
             NISAR 12-DAY REPEAT CYCLE
           </span>
+          <DemoBadge className="hidden md:inline" />
         </div>
 
         {/* Spacer */}

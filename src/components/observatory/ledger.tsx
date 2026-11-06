@@ -11,6 +11,7 @@ import { estimateDisplacement } from '@/lib/eventPhysics';
 import { RegionMap } from './region-map';
 import { WATCH_ADD_EVENT } from '@/lib/useWatchlist';
 import { StormOutlook } from './storm-outlook';
+import { NisarCoverage } from './nisar-coverage';
 import { PlaceSuggest } from './place-suggest';
 import type { Place } from '@/lib/placeSearch';
 import { eventsToCSV, eventsToGeoJSON, download, exportFilename } from '@/lib/exportEvents';
@@ -317,6 +318,7 @@ export function Ledger({ onOpen, onPlace }: LedgerProps) {
                       <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div></>)}
                       {e.type === 'storm' && open && <StormOutlook event={e} className="lg-wide" />}
                       {e.type !== 'storm' && <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>}
+                      {e.type !== 'storm' && open && <div className="lg-wide lg-nisar"><NisarCoverage event={e} compact /></div>}
                       {disp.rupture && <div><dt>Rupture area (est.)</dt><dd>{disp.rupture.areaKm2 < 10 ? disp.rupture.areaKm2.toFixed(1) : Math.round(disp.rupture.areaKm2).toLocaleString()} KM²</dd></div>}
                       {disp.rupture && <div><dt>Rupture size (est.)</dt><dd>{disp.rupture.lengthKm.toFixed(0)} × {disp.rupture.widthKm.toFixed(0)} KM</dd></div>}
                     </dl>

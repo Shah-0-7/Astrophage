@@ -14,6 +14,7 @@ import { OutlineWordmark } from '@/components/ui/outline-wordmark';
 import { OutlineDefs } from '@/components/ui/outline-defs';
 import { RegionMap } from '@/components/observatory/region-map';
 import { StormOutlook } from '@/components/observatory/storm-outlook';
+import { NisarCoverage } from '@/components/observatory/nisar-coverage';
 import { fetchAllGlobalEvents, type GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, CAUSE_LABELS } from '@/lib/eventDirectoryTypes';
 import { stormOf } from '@/lib/stormScale';
@@ -161,9 +162,10 @@ function EventReportInner({ id }: { id: string }) {
                 <h3>SURFACE DISPLACEMENT</h3>
                 <div className="rp-big">{disp.label}</div>
                 <p>{disp.note}</p>
-                <small>Modelled from magnitude and depth, not measured. Measured values will come from NISAR InSAR and GNSS once that pipeline is connected.</small>
+                <small>Modelled from magnitude and depth, not measured. See NISAR observations below for real InSAR products that may contain this event.</small>
               </section>
               )}
+              {e.type !== 'storm' && <NisarCoverage event={e} className="rp-card" />}
               {disp.rupture && (
                 <section className="rp-card">
                   <h3>AREA COVERED (EST.)</h3>

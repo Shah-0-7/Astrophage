@@ -280,6 +280,7 @@ export interface MapLayerConfig {
   temporalDecay: boolean;
   gnssStations: boolean;
   sentinelSwaths: boolean;
+  nisarScenes: boolean;
   volcanismAlerts: boolean;
   cryosphereExtent: boolean;
   tsunamiZones: boolean;
