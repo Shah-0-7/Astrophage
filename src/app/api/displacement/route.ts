@@ -1,11 +1,12 @@
 /**
  * /api/displacement – measured ground-motion grids from NISAR interferograms.
  *   ?lat=&lon=&time=   metadata of grids covering the point whose date pair spans the time (shortest pair first)
+ *   ?all=1             the 50 most recently stored grids (metadata), to check what the site holds
  *   ?id=               the grid itself (compact JSON, see src/lib/displacement/field.ts)
  * Grids are uploaded by tools/nisar-grid through /api/displacement/ingest.
  */
 import { fail, json } from '@/lib/server/api';
-import { findFields, getFieldBody } from '@/lib/server/displacementStore';
+import { findFields, getFieldBody, listFields } from '@/lib/server/displacementStore';
 import { serverEnv } from '@/lib/server/env';
 import { clientKey, rateLimit } from '@/lib/rateLimit';
 
@@ -21,6 +22,12 @@ export async function GET(req: Request) {
     if (!env.DB) return fail(503, 'Storage is not configured on this deployment.');
     const body = await getFieldBody(env.DB, id);
     return body ? new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600' } }) : fail(404, 'No such grid.');
+  }
+
+  if (sp.get('all')) {
+    if (!env.DB) return json({ configured: false, fields: [] });
+    try { return json({ configured: true, fields: await listFields(env.DB, 50) }, 200, { 'Cache-Control': 'no-store' }); }
+    catch (e) { console.error('[api/displacement]', e); return json({ configured: true, fields: [], error: 'Lookup failed.' }); }
   }
 
   const lat = Number(sp.get('lat')), lon = Number(sp.get('lon')), time = Number(sp.get('time'));

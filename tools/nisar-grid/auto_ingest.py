@@ -210,8 +210,8 @@ def main(argv: list[str] | None = None) -> int:
     if not earthdata:
         print("warning: EARTHDATA_TOKEN is not set; NASA will refuse the download", file=sys.stderr)
     stats = run(site=a.site, min_mag=a.min_mag, days=a.days, max_new=a.max_new, maturity=a.maturity, dry=a.dry_run, ingest=ingest, earthdata=earthdata)
-    # Only a site problem fails the job; individual events without a pair or with a bad file are logged above.
-    return 1 if stats["failed"] and stats["events"] == 0 else 0
+    # Events without a pair are normal. A failed download or upload turns the run red so it is not mistaken for success.
+    return 1 if stats["failed"] else 0
 
 
 if __name__ == "__main__":

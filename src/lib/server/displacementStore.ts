@@ -21,6 +21,12 @@ export async function findFields(db: Db, lon: number, lat: number, time: number)
   return results.map(r => metaOf(JSON.parse(r.body) as FieldWire));
 }
 
+/** The most recently stored grids (metadata only), for checking what the site holds. */
+export async function listFields(db: Db, limit = 50): Promise<(FieldMeta & { storedAt: number })[]> {
+  const { results } = await db.prepare('SELECT body, created_at FROM displacement_fields ORDER BY created_at DESC LIMIT ?').bind(limit).all<Pick<Row, 'body'> & { created_at: number }>();
+  return results.map(r => ({ ...metaOf(JSON.parse(r.body) as FieldWire), storedAt: r.created_at }));
+}
+
 export async function getFieldBody(db: Db, id: string): Promise<string | null> {
   const r = await db.prepare('SELECT body FROM displacement_fields WHERE id = ?').bind(id).first<Pick<Row, 'body'>>();
   return r?.body ?? null;

@@ -120,6 +120,15 @@ describe('API', () => {
     expect(m.map(x => x.id)).toEqual(['short-pair', 'long-pair']);
     expect(m[0].maturity).toBe('BETA');
   });
+  it('lists what is stored, newest first, with no grid values', async () => {
+    await post(encodeField(field({ id: 'first' })));
+    await post(encodeField(field({ id: 'second' })));
+    const r = await (await list.GET(new Request(`${ORIGIN}/api/displacement?all=1`))).json();
+    expect(r.configured).toBe(true);
+    expect(r.fields.map((f: { id: string }) => f.id).sort()).toEqual(['first', 'second']);
+    expect(r.fields[0].los).toBeUndefined();
+    expect(typeof r.fields[0].storedAt).toBe('number');
+  });
   it('reports "not configured" without a database and 404 for unknown ids', async () => {
     expect((await list.GET(new Request(`${ORIGIN}/api/displacement?id=nope.nope`))).status).toBe(404);
     __setServerEnvForTests({});

@@ -76,6 +76,7 @@ Then Actions → *Process NISAR interferogram* → Run workflow, and fill in the
 
 - A grid is at most 256 × 256 int16 cells at 0.1 cm steps (about 175 KB as JSON), stored in D1 table `displacement_fields`.
 - `GET /api/displacement?lat=&lon=&time=` lists grids that contain the point and whose date pair spans `time`; `?id=` returns one.
+- `GET /api/displacement?all=1` lists the 50 most recently stored grids (metadata only): open it in a browser to see what the site holds.
 - `POST /api/displacement/ingest` stores one (`Authorization: Bearer $INGEST_SECRET`); `DELETE ?id=` removes one.
 - The wire format is defined in `src/lib/displacement/field.ts` and written by `tools/nisar-grid/nisar_grid.py`; a shared fixture test keeps the two in step.
 
