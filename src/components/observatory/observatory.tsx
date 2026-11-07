@@ -43,6 +43,7 @@ function Inner({ initialView }: { initialView: ObView }) {
   const playbackAnchor = useStore(s => s.playbackAnchor);
   const setSelectedGlobalEvent = useStore(s => s.setSelectedGlobalEvent);
   const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
+  const setTopoEvent = useStore(s => s.setTopoEvent);
   const [eventsOpen, setEventsOpen] = useState(initialView === 'events');
   const [globeFocus, setGlobeFocus] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
@@ -77,7 +78,7 @@ function Inner({ initialView }: { initialView: ObView }) {
     if (iris.current) void iris.current.transition(x, y, swap); else swap();
   }, [view, setViewMode]);
 
-  const openFromLedger = useCallback((target: 'radar' | 'globe', e: GlobalEvent, x: number, y: number) => {
+  const openFromLedger = useCallback((target: 'radar' | 'globe' | 'topo', e: GlobalEvent, x: number, y: number) => {
     goTo(target, x, y, () => {
       if (target === 'radar') {
         // Select the event (opens its callout and info panel), jump the timeline to its epoch and zoom in on it.
@@ -86,9 +87,10 @@ function Inner({ initialView }: { initialView: ObView }) {
         PASS_EPOCHS.forEach((p, i) => { const d = Math.abs(new Date(p.date).getTime() - e.time); if (d < diff) { diff = d; best = i; } });
         setCurrentPassIndex(best);
         setFlyToCoords([e.lon, e.lat]);
-      } else setGlobeFocus(e.id);
+      } else if (target === 'topo') setTopoEvent(e);
+      else setGlobeFocus(e.id);
     });
-  }, [goTo, setFlyToCoords, setSelectedGlobalEvent, setCurrentPassIndex]);
+  }, [goTo, setFlyToCoords, setSelectedGlobalEvent, setCurrentPassIndex, setTopoEvent]);
 
   const openPlace = useCallback((p: { lat: number; lon: number }, x: number, y: number) => {
     goTo('radar', x, y, () => setFlyToCoords([p.lon, p.lat]));

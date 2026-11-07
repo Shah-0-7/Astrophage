@@ -17,7 +17,7 @@
   // The alert job runs every 10 minutes.
   "triggers": { "crons": ["*/10 * * * *"] },
 
-  // Non-secret settings. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET, RESEND_API_KEY, CRON_SECRET) are set with `wrangler secret put`.
+  // Non-secret settings. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET, RESEND_API_KEY, CRON_SECRET, INGEST_SECRET) are set with `wrangler secret put`.
   "vars": {
     "APP_URL": "https://astrophage.shah-7.workers.dev",
     "GOOGLE_CLIENT_ID": "740458867159-8b6b9vnu42ib2a22qtsmugurnut1sp32.apps.googleusercontent.com",

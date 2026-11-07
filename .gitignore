@@ -48,3 +48,8 @@ next-env.d.ts
 .dev.vars
 .wrangler/
 .open-next/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

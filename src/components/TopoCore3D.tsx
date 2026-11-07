@@ -24,6 +24,7 @@ import { useStore } from '@/lib/store';
 import { TARGET_NODES, PASS_EPOCHS } from '@/lib/mockData';
 import type { CameraPreset, PolVar, PointProbeResult } from '@/lib/types';
 import { useTheme } from '@/lib/ThemeProvider';
+import { MeasuredTopoView } from '@/components/topo/measured-view';
 
 const CAMERA_SETTINGS = {
   ISO_45:     { position: [5, 5, 5], zoom: 200 },
@@ -224,7 +225,7 @@ function TerrainCanvas({
 }
 
 /* ── Main component ─────────────────────────────────────────── */
-export default function TopoCore3D() {
+function ClassicTopo() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const activeNodeId = useStore(s => s.activeNodeId);
@@ -356,6 +357,8 @@ export default function TopoCore3D() {
             <span className="font-mono text-[9px] font-700 text-white tracking-wider">◎ SAR-CORE 3D DEM</span>
           </div>
           <span className="tp-hide font-mono text-[9px] text-white/30">TACTICAL-SECTOR-47</span>
+          <DemoBadge />
+          <span className="tp-hide font-mono text-[9px] text-white/40">Simulated scene. For measured NISAR ground motion on real terrain, use OPEN IN 3D on an event in the ledger.</span>
           <span className="tp-hide font-mono text-[9px] text-white/30">/ COHERENCE: γ ≥ {coherenceThreshold.toFixed(2)}</span>
 
           <div className="ml-auto">
@@ -595,4 +598,15 @@ export default function TopoCore3D() {
       </div>
     </div>
   );
+}
+
+/**
+ * Opened from an event ("OPEN IN 3D"), the view shows real terrain with measured NISAR ground motion draped on it.
+ * Opened from the tab bar, it is the classic procedural scene, whose readouts are simulated (badged ESTIMATED).
+ */
+export default function TopoCore3D() {
+  const topoEvent = useStore(s => s.topoEvent);
+  const setTopoEvent = useStore(s => s.setTopoEvent);
+  if (topoEvent) return <MeasuredTopoView key={topoEvent.id} event={topoEvent} onExit={() => setTopoEvent(null)} />;
+  return <ClassicTopo />;
 }

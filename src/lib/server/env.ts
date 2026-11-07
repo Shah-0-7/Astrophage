@@ -14,10 +14,12 @@ export interface ServerEnv {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   CRON_SECRET?: string;
+  /** Bearer token the displacement processor uses to upload grids. */
+  INGEST_SECRET?: string;
   APP_URL?: string;
 }
 
-const KEYS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'SESSION_SECRET', 'RESEND_API_KEY', 'EMAIL_FROM', 'CRON_SECRET', 'APP_URL'] as const;
+const KEYS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'SESSION_SECRET', 'RESEND_API_KEY', 'EMAIL_FROM', 'CRON_SECRET', 'INGEST_SECRET', 'APP_URL'] as const;
 
 let override: ServerEnv | null = null;
 /** Test seam: route tests inject a database and secrets here. Never called in the app. */

@@ -80,7 +80,7 @@ function stashEvent(e: GlobalEvent) {
 
 export interface LedgerProps {
   /** Jump to another view centred on this event. */
-  onOpen: (view: 'radar' | 'globe', event: GlobalEvent, x: number, y: number) => void;
+  onOpen: (view: 'radar' | 'globe' | 'topo', event: GlobalEvent, x: number, y: number) => void;
   /** Jump to the radar centred on a searched place. */
   onPlace?: (place: { lat: number; lon: number; name: string }, x: number, y: number) => void;
 }
@@ -324,6 +324,7 @@ export function Ledger({ onOpen, onPlace }: LedgerProps) {
                     </dl>
                     <div className="lg-links">
                       <button type="button" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onOpen('radar', e, r.left + r.width / 2, r.top + r.height / 2); }}>OPEN IN RADAR →</button>
+                      {e.type !== 'storm' && <button type="button" className="lg-ghost" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onOpen('topo', e, r.left + r.width / 2, r.top + r.height / 2); }}>OPEN IN 3D →</button>}
                       <button type="button" className="lg-ghost" onClick={ev => { const r = ev.currentTarget.getBoundingClientRect(); onOpen('globe', e, r.left + r.width / 2, r.top + r.height / 2); }}>SHOW ON GLOBE</button>
                       <Link href={`/events/${encodeURIComponent(e.id)}`} className="lg-ghost" onClick={() => stashEvent(e)}>FULL REPORT</Link>
                       <a href={e.source_url} target="_blank" rel="noreferrer" className="lg-ghost">SOURCE ↗</a>

@@ -85,6 +85,9 @@ interface StoreState {
   toggleInstrumentLayers: (flags: Partial<InstrumentLayers>) => void;
   cameraPreset: CameraPreset;
   setCameraViewport: (preset: CameraPreset) => void;
+  /** The event the Topo view is showing measured displacement for (null = the classic procedural view). */
+  topoEvent: import('./globalEvents').GlobalEvent | null;
+  setTopoEvent: (e: import('./globalEvents').GlobalEvent | null) => void;
 
   /* ── Point-probe ────────────────────────────────────────── */
   pointProbe: PointProbeResult | null;
@@ -198,6 +201,8 @@ export const useStore = create<StoreState>((set, get) => ({
     set(s => ({ instrumentLayers: { ...s.instrumentLayers, ...flags } })),
   cameraPreset: 'ISO_45',
   setCameraViewport: (preset) => set({ cameraPreset: preset }),
+  topoEvent: null,
+  setTopoEvent: (e) => set({ topoEvent: e }),
 
   /* ── Point-probe ────────────────────────────────────────── */
   pointProbe: {

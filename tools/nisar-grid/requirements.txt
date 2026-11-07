@@ -1,0 +1,8 @@
+numpy>=1.26
+h5py>=3.10
+pyproj>=3.6
+# only needed to read a file straight from ASF over HTTPS instead of a downloaded copy:
+fsspec>=2024.2
+aiohttp>=3.9
+# only for the tests:
+pytest>=8

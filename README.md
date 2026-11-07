@@ -65,6 +65,9 @@ GDACS are merged by name.
   last 14 days for the area in view (amber = InSAR products). Every earthquake, volcano and landslide report and ledger row has a
   **NISAR observations** block: how many times NISAR has imaged the spot, and which interferograms pair a date before and after the event.
   These are catalogue records. See [docs/NISAR_DATA.md](docs/NISAR_DATA.md) for what is and is not measured.
+- **Measured ground motion in 3D** (opt-in): **OPEN IN 3D** on an event shows real terrain with a processed NISAR GUNW interferogram draped on it
+  (line-of-sight cm, fringes, coherence mask, hover readout). Grids are made with `tools/nisar-grid` or a GitHub Action and stored in D1.
+  Events with no processed grid say so. See [docs/DISPLACEMENT.md](docs/DISPLACEMENT.md).
 - **Storm outlook**: a projected 72 h path, uncertainty cone and landfall estimate drawn on the storm's map and written up in the ledger and report.
   It is extrapolated from the storm's own recent track (`src/lib/stormForecast.ts`), **not** an official NHC/JTWC forecast, and is labelled as such.
 - **Radar replay**: 24H / 7D / ALL windows on the timeline sweep the loaded events through the chosen window.
@@ -79,13 +82,13 @@ Be careful when quoting numbers from the app.
 - **Earthquake, volcano, storm and landslide records** come straight from the sources above.
 - **Surface displacement for earthquakes is modelled**, not measured: rupture size and slip come from Wells & Coppersmith
   (1994) scaling and Hanks & Kanamori moment relations, from magnitude and depth only. It is always labelled
-  "modelled". Measured displacement needs InSAR or GNSS processing, which is not yet connected: the app lists which real
-  NISAR interferograms exist for an event but does not download or unwrap them.
+  "modelled". Measured displacement needs InSAR processing: the app lists which real NISAR interferograms exist for an event, and
+  the Topo view draws any that have been processed with `tools/nisar-grid` (see docs/DISPLACEMENT.md). The app itself does not download or unwrap files.
 - **Storm category** is computed from maximum sustained wind with the Saffir–Simpson thresholds. Storms with no reported
   wind show "Not reported" rather than a guess.
 - **The NISAR scenario overlays, pass timeline, coherence and displacement readouts on the Radar and Topo views are
   simulated demo data** (`src/lib/mockData.ts`), marked **ESTIMATED** in the UI. They are not live NISAR products.
-  The **NISAR scenes (real)** layer and the **NISAR observations** blocks are the real ones.
+  The **NISAR scenes (real)** layer, the **NISAR observations** blocks and the **OPEN IN 3D** measured view are the real ones.
 
 ## Environment variables
 

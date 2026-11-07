@@ -7,3 +7,5 @@ SESSION_SECRET=
 CRON_SECRET=
 RESEND_API_KEY=
 EMAIL_FROM=Astrophage <alerts@your-verified-domain.example>
+# Long random string; lets tools/nisar-grid upload measured displacement grids (docs/DISPLACEMENT.md)
+INGEST_SECRET=

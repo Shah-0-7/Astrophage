@@ -1,0 +1,51 @@
+name: Process NISAR interferogram
+
+# Manual run: turns one NISAR GUNW file into a ground-motion grid and uploads it to the site.
+# Needs repository secrets INGEST_SECRET and EARTHDATA_TOKEN, and the variable SITE_URL. See docs/DISPLACEMENT.md.
+on:
+  workflow_dispatch:
+    inputs:
+      granule_url:
+        description: "HTTPS link to a NISAR GUNW .h5 file (from the event's NISAR observations block or ASF Search)"
+        required: true
+      center:
+        description: "Event location as lon,lat (the grid is cropped around it)"
+        required: true
+      radius_km:
+        description: "Half-width of the window in km"
+        default: "120"
+      maturity:
+        description: "Data maturity of the product"
+        type: choice
+        default: PROVISIONAL
+        options: [PROVISIONAL, BETA, VALIDATED]
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/nisar-grid/requirements.txt
+      - run: pip install -r tools/nisar-grid/requirements.txt
+      - name: Process and upload
+        env:
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
+          EARTHDATA_TOKEN: ${{ secrets.EARTHDATA_TOKEN }}
+          GRANULE_URL: ${{ inputs.granule_url }}
+          CENTER: ${{ inputs.center }}
+          RADIUS_KM: ${{ inputs.radius_km }}
+          MATURITY: ${{ inputs.maturity }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          python tools/nisar-grid/nisar_grid.py "$GRANULE_URL" \
+            --center "$CENTER" --radius-km "$RADIUS_KM" --maturity "$MATURITY" \
+            --out grid.json --upload "$SITE_URL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grid
+          path: grid.json
