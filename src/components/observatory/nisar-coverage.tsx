@@ -94,8 +94,8 @@ export function NisarCoverage({ event, compact = false, className = '' }: { even
       <h3>NISAR OBSERVATIONS</h3>
       {body}
       <small className="nc-fine">
-        Catalogue records, not measurements: this app does not download or process the files, and the displacement estimate above is still modelled.
-        Files need a free NASA Earthdata login. <a href={NISAR_LINKS.asfSearch} target="_blank" rel="noreferrer">Search NISAR on ASF ↗</a>
+        Catalogue records, not measurements. Where an interferogram has been processed, its measured ground motion is in the 3D view (OPEN IN 3D on the event);
+        the displacement estimate above is still modelled. Downloading the files needs a free NASA Earthdata login. <a href={NISAR_LINKS.asfSearch} target="_blank" rel="noreferrer">Search NISAR on ASF ↗</a>
       </small>
     </section>
   );

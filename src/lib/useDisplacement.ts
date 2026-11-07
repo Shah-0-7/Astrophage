@@ -7,7 +7,7 @@ export type DisplacementState =
   | { status: 'loading' }
   | { status: 'unconfigured' }            // this deployment has no database
   | { status: 'none' }                    // nothing processed for this event yet
-  | { status: 'failed' }
+  | { status: 'failed'; detail: string }
   | { status: 'ready'; field: DisplacementField; others: FieldMeta[] };
 
 /** The measured grid (if any) whose date pair spans the event, shortest pair first. `pick` chooses among several. */
@@ -30,7 +30,7 @@ export function useDisplacement(event: { lat: number; lon: number; time: number 
         if (!g.ok) throw new Error(String(g.status));
         const field = decodeField((await g.json()) as FieldWire);
         if (alive) setState({ status: 'ready', field, others: j.fields.filter(f => f.id !== chosen.id) });
-      } catch { if (alive) setState({ status: 'failed' }); }
+      } catch (e) { if (alive) setState({ status: 'failed', detail: e instanceof Error ? e.message : 'request failed' }); }
     })();
     return () => { alive = false; };
   }, [lat, lon, time, pick]);

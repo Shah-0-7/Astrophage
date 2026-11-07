@@ -183,11 +183,12 @@ export function MeasuredTopoView({ event, onExit }: { event: GlobalEvent; onExit
 
   let overlay: React.ReactNode = null;
   if (disp.status === 'loading') overlay = <div className="mv-overlay"><b>LOADING MEASURED GRID…</b></div>;
-  else if (disp.status === 'failed') overlay = <div className="mv-overlay"><b>COULD NOT LOAD DISPLACEMENT DATA</b><p>The request failed. Elevation is shown below without a measurement; try again in a moment.</p></div>;
+  else if (disp.status === 'failed') overlay = <div className="mv-overlay"><b>COULD NOT LOAD DISPLACEMENT DATA</b><p>The request failed ({disp.detail}). Elevation is shown below without a measurement; try again in a moment.</p></div>;
   else if (disp.status === 'unconfigured') overlay = <div className="mv-overlay"><b>NO DATABASE ON THIS DEPLOYMENT</b><p>Measured grids are stored in the Cloudflare D1 database, which this deployment does not have. See docs/DISPLACEMENT.md. Elevation is real; there is nothing measured to drape yet.</p></div>;
   else if (disp.status === 'none') overlay = (
     <div className="mv-overlay">
       <b>NO MEASURED GRID FOR THIS EVENT YET</b>
+      <p className="mv-muted" style={{ fontSize: 11 }}>Looked for a grid covering {event.lat.toFixed(3)}°, {event.lon.toFixed(3)}° whose two dates enclose {new Date(event.time).toISOString().slice(0, 16).replace('T', ' ')} UTC. Recent uploads can take a few minutes to appear.</p>
       <p>Nothing has been processed here, so no motion is drawn. {terrainState.status === 'ready' ? 'The surface is real elevation.' : 'Elevation is not available either.'}</p>
       {spanning.length > 0 ? (
         <>
