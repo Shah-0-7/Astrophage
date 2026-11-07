@@ -184,6 +184,10 @@ def run(*, site: str, min_mag: float, days: float, max_new: int, maturity: str, 
             log(f"  work   {tag}: {pair['name']}")
             log("         " + process(ev, pair, site=site, ingest=ingest, earthdata=earthdata, maturity=maturity, dry=dry))
             stats["done"] += 1
+        except ng.AuthError as e:  # every later file would fail the same way
+            stats["failed"] += 1
+            log(f"  STOP   {tag}: {e}")
+            break
         except (Exception, SystemExit) as e:  # noqa: BLE001 - one bad event must not stop the rest
             stats["failed"] += 1
             log(f"  FAILED {tag}: {e}")
@@ -200,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--maturity", default="PROVISIONAL", choices=["PROVISIONAL", "BETA", "VALIDATED"])
     ap.add_argument("--dry-run", action="store_true", help="list what would be processed, still reads the files but uploads nothing")
     a = ap.parse_args(argv)
-    ingest, earthdata = os.environ.get("INGEST_SECRET"), os.environ.get("EARTHDATA_TOKEN")
+    ingest, earthdata = os.environ.get("INGEST_SECRET"), ng.clean_token(os.environ.get("EARTHDATA_TOKEN"))
     if not a.dry_run and not ingest:
         sys.exit("INGEST_SECRET is not set")
     if not earthdata:

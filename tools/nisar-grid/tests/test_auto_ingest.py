@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import auto_ingest as ai  # noqa: E402
+import nisar_grid as ng  # noqa: E402
 
 T = lambda s: datetime.strptime(s, "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc).timestamp() * 1000
 
@@ -135,3 +136,65 @@ def test_process_event_end_to_end_on_a_local_file(tmp_path, monkeypatch):
     assert w["reference"] == pair["ref"] and w["secondary"] == pair["sec"]
     dry = ai.process_event(ev, pair, site=None, ingest=None, earthdata=None, maturity="PROVISIONAL", dry=True)
     assert dry.startswith("dry run") and len(sent) == 1
+
+
+# ---- download redirects (a tiny local server standing in for NASA's Earthdata Cloud front door) ----
+import http.server
+import threading
+
+import pytest
+
+
+def _server(handler):
+    srv = http.server.HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_port}"
+
+
+def test_resolve_download_follows_to_storage_without_leaking_the_token():
+    seen = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a): pass
+        def do_GET(self):
+            seen[self.path] = self.headers.get("Authorization")
+            if self.path == "/file.h5":
+                self.send_response(302); self.send_header("Location", "/signed?X=1"); self.end_headers()
+            else:
+                self.send_response(206); self.send_header("Content-Range", "bytes 0-0/10"); self.send_header("Content-Length", "1"); self.end_headers(); self.wfile.write(b"x")
+    srv, base = _server(H)
+    monkey_hosts = ng._sends_token_to
+    ng._sends_token_to = lambda url: url.endswith("/file.h5")  # loopback is not a NASA host; stand in for "the NASA front door"
+    try:
+        final = ng.resolve_download(base + "/file.h5", "  Bearer abc123 \n")
+    finally:
+        ng._sends_token_to = monkey_hosts
+        srv.shutdown()
+    assert final == base + "/signed?X=1"
+    assert seen["/file.h5"] == "Bearer abc123"      # cleaned token sent to the NASA door
+    assert seen["/signed?X=1"] is None               # and not to the storage link
+
+
+def test_resolve_download_explains_a_rejected_token():
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a): pass
+        def do_GET(self):
+            self.send_response(302); self.send_header("Location", "https://urs.earthdata.nasa.gov/oauth/authorize?x=1"); self.end_headers()
+    srv, base = _server(H)
+    try:
+        with pytest.raises(ng.AuthError, match="Earthdata login page"):
+            ng.resolve_download(base + "/f.h5", "tok")
+    finally:
+        srv.shutdown()
+
+
+def test_token_is_cleaned():
+    assert ng.clean_token(' "Bearer  abc" \n') == "abc" and ng.clean_token("   ") is None and ng.clean_token(None) is None
+
+
+def test_a_rejected_token_stops_the_whole_run():
+    f = make_fetch(features=[feat(gunw("20261001", "20261013"))])
+    def deny(ev, pair, **k):
+        raise ng.AuthError("NASA sent the request to the Earthdata login page")
+    stats, _, logs = run(f, process=deny)
+    assert stats["failed"] == 1 and any(l.startswith("  STOP") for l in logs)

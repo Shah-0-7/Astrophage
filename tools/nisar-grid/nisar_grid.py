@@ -26,6 +26,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -294,6 +295,66 @@ def build_wire(g: dict, *, center: tuple[float, float] | None = None, radius_km:
 
 # --------------------------------------------------------------------------- IO
 
+class AuthError(RuntimeError):
+    """NASA refused the Earthdata token (or the download is not authorised for it)."""
+
+
+def clean_token(token: str | None) -> str | None:
+    """Tokens are pasted into secrets, so tolerate a leading 'Bearer ', quotes and stray whitespace."""
+    if not token:
+        return None
+    t = token.strip().strip("\"'").strip()
+    if t.lower().startswith("bearer "):
+        t = t[7:].strip()
+    return t or None
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):  # noqa: D401 - hand redirects back to us
+        return None
+
+
+def _sends_token_to(url: str) -> bool:
+    host = urllib.parse.urlparse(url).hostname or ""
+    return host.endswith("earthdatacloud.nasa.gov") or host.endswith("asf.alaska.edu") or host.endswith(".earthdata.nasa.gov")
+
+
+def resolve_download(url: str, token: str | None, max_hops: int = 6) -> str:
+    """
+    Follow the redirects NASA puts in front of a download by hand. The Earthdata token goes only to NASA/ASF hosts, never to the
+    temporary storage link at the end (which must not receive it). Returns the final URL, which can then be range-read without credentials.
+    Raises AuthError, saying what NASA answered, when the token is not accepted.
+    """
+    token = clean_token(token)
+    opener = urllib.request.build_opener(_NoRedirect)
+    cur = url
+    for _ in range(max_hops):
+        headers = {"Range": "bytes=0-0", "User-Agent": "astrophage-nisar-grid"}
+        if token and _sends_token_to(cur):
+            headers["Authorization"] = f"Bearer {token}"
+        try:
+            with opener.open(urllib.request.Request(cur, headers=headers), timeout=60) as r:
+                status, loc = r.status, None
+        except urllib.error.HTTPError as e:
+            status, loc = e.code, e.headers.get("Location")
+        if status in (301, 302, 303, 307, 308) and loc:
+            nxt = urllib.parse.urljoin(cur, loc)
+            if (urllib.parse.urlparse(nxt).hostname or "") == "urs.earthdata.nasa.gov":
+                why = "no token was given" if not token else "the token was not accepted"
+                raise AuthError(
+                    f"NASA sent the request to the Earthdata login page: {why}. Check that EARTHDATA_TOKEN is a current token "
+                    "(urs.earthdata.nasa.gov/profile > Generate Token; they expire after ~60 days), is pasted without the word 'Bearer', and that "
+                    "'Alaska Satellite Facility Data Access' is approved under Applications > Authorized Apps.")
+            cur = nxt
+            continue
+        if status in (200, 206):
+            return cur
+        if status in (401, 403):
+            raise AuthError(f"NASA answered {status} for this file: the account is not allowed to download it (approve the ASF app, or the file needs another approval).")
+        raise RuntimeError(f"download check failed with HTTP {status} at {cur.split('?')[0]}")
+    raise RuntimeError("too many redirects while locating the file")
+
+
 def open_input(path_or_url: str, token: str | None):
     import h5py
     if re.match(r"^https?://", path_or_url):
@@ -301,9 +362,9 @@ def open_input(path_or_url: str, token: str | None):
             import fsspec
         except ImportError:
             sys.exit("Reading from a URL needs fsspec and aiohttp: pip install -r requirements.txt")
-        headers = {"Authorization": f"Bearer {token}"} if token else {}
-        fs = fsspec.filesystem("https", client_kwargs={"headers": headers})
-        return h5py.File(fs.open(path_or_url, "rb", block_size=8 * 1024 * 1024, cache_type="mmap"), "r")
+        final = resolve_download(path_or_url, token)
+        fs = fsspec.filesystem("https")
+        return h5py.File(fs.open(final, "rb", block_size=8 * 1024 * 1024, cache_type="mmap"), "r")
     return h5py.File(path_or_url, "r")
 
 

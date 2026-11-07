@@ -63,6 +63,8 @@ Events with no spanning pair are skipped; they are tried again on the next run. 
 variable `SITE_URL` (same as for the manual workflow), then Actions → *Auto-process NISAR interferograms* → Run workflow once with **dry run** ticked to see what it finds.
 **By hand:** `python auto_ingest.py --site https://YOUR-SITE --dry-run`.
 
+If a run stops with *NASA sent the request to the Earthdata login page*, NASA did not accept the token: make a new one, paste it into the `EARTHDATA_TOKEN` secret without the word `Bearer` or quotes, and check that **Alaska Satellite Facility Data Access** is approved under Authorized Apps.
+
 Earthdata tokens expire after about 60 days. When the job starts failing with 401/403, make a new token and update the secret.
 
 ### Without a local Python setup: GitHub Actions
