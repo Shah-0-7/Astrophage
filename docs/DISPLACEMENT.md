@@ -49,6 +49,22 @@ python nisar_grid.py https://datapool.asf.alaska.edu/.../NISAR_L2_PR_GUNW_....h5
 
 Add `--dry-run --out grid.json` to write the grid without uploading. A downloaded file works too: pass its path instead of a URL.
 
+## Automatic mode (no searching per event)
+
+`tools/nisar-grid/auto_ingest.py` does the manual steps for you. For each earthquake of magnitude 6 or more in the last 45 days it
+1. skips the event if the site already has a grid for it;
+2. asks ASF's public search API (`api.daac.asf.alaska.edu/services/search/param`, no login) for NISAR GUNW files that contain the epicentre;
+3. keeps a pair whose reference date is before the event and whose secondary date is after it (shortest span first);
+4. reads that file with your Earthdata token, builds the grid and uploads it.
+
+Events with no spanning pair are skipped; they are tried again on the next run. Each run processes at most `--max-new` (default 2) new files.
+
+**On a schedule:** the workflow *Auto-process NISAR interferograms* runs every 6 hours. Add the secrets `INGEST_SECRET` and `EARTHDATA_TOKEN` and the
+variable `SITE_URL` (same as for the manual workflow), then Actions → *Auto-process NISAR interferograms* → Run workflow once with **dry run** ticked to see what it finds.
+**By hand:** `python auto_ingest.py --site https://YOUR-SITE --dry-run`.
+
+Earthdata tokens expire after about 60 days. When the job starts failing with 401/403, make a new token and update the secret.
+
 ### Without a local Python setup: GitHub Actions
 
 Repository → Settings → Secrets and variables → Actions: add secrets `INGEST_SECRET` and `EARTHDATA_TOKEN`, and the variable `SITE_URL`.
