@@ -764,6 +764,10 @@ a.tac-btn { text-decoration: none; }
   border-radius: 2px;
 }
 
+/* Firefox draws the filled part of a range itself */
+.globe-relief-slider::-moz-range-track { height: 3px; background: rgba(255,255,255,0.10); border-radius: 2px; }
+.globe-relief-slider::-moz-range-progress { height: 3px; background: rgba(239,68,68,0.6); border-radius: 2px; }
+
 /* ── Texture-loading overlay spinner ─────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }

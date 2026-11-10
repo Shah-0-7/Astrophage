@@ -1082,7 +1082,7 @@ function ReliefSlider({
       <div className="flex items-center justify-between mb-2">
         <p className="panel-label">RELIEF SCALE</p>
         <span className="font-mono text-[10px] font-700" style={{ color: 'var(--crimson)' }}>
-          {value.toFixed(1)}×
+          {Number.isInteger(value) ? value : value.toFixed(1)}×
         </span>
       </div>
       <input
@@ -1093,6 +1093,7 @@ function ReliefSlider({
         value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="globe-relief-slider w-full"
+        style={{ '--thumb-percent': `${((value - 1) / 4) * 100}%` } as React.CSSProperties}
         aria-label="Terrain relief vertical exaggeration"
       />
       <div className="flex justify-between mt-1">
@@ -1276,12 +1277,28 @@ function LegendStrip() {
 
 // ── Source health strip ───────────────────────────────────────
 function SourceHealthStrip({ health }: { health: SourceHealth[] }) {
+  const [open, setOpen] = useState(false); // minimised by default
+  const bad = health.filter(h => h.status === 'error').length;
+  const stale = health.filter(h => h.status === 'cached').length;
+  const dot = bad ? '#ef4444' : stale ? '#facc15' : '#4ade80';
+  const summary = bad ? `${bad} DOWN` : stale ? `${stale} CACHED` : 'ALL OK';
   return (
     <div className="gl-sources absolute top-3 right-3 z-20 glass-panel rounded-sm" style={{ padding: '8px 10px' }}>
-      <p className="panel-label mb-1.5">SOURCE STATUS</p>
-      <div className="flex flex-col gap-1">
-        {health.map(h => <SourceBadge key={h.name} health={h} />)}
-      </div>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-controls="gl-sources-list"
+        className="flex w-full items-center gap-2 text-left" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit' }}>
+        <span className="panel-label" style={{ margin: 0 }}>SOURCE STATUS</span>
+        {!open && (
+          <span className="flex items-center gap-1 font-mono text-[8px] text-white/40">
+            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot, boxShadow: `0 0 4px ${dot}` }} />{summary}
+          </span>
+        )}
+        <span aria-hidden className="ml-auto font-mono text-[9px] text-white/40">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div id="gl-sources-list" className="flex flex-col gap-1 mt-1.5">
+          {health.map(h => <SourceBadge key={h.name} health={h} />)}
+        </div>
+      )}
     </div>
   );
 }
