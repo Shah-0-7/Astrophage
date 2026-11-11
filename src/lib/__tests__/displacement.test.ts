@@ -168,3 +168,22 @@ describe('processor output (tools/nisar-grid) is accepted by the app', () => {
     expect(f.secondary).toBeGreaterThan(f.reference);
   });
 });
+
+import { fmtRangeCm, matchFields } from '@/lib/displacement/match';
+
+describe('matching grids to events in the browser', () => {
+  const m = (id: string, bbox: [number, number, number, number], reference: number, secondary: number) => ({ id, bbox, reference, secondary });
+  const list = [m('long', [0, 0, 10, 10], 0, 100), m('short', [0, 0, 10, 10], 40, 60), m('elsewhere', [20, 20, 30, 30], 0, 100), m('before', [0, 0, 10, 10], 0, 30)];
+  it('keeps grids that contain the point and enclose the time, shortest first, like the server', () => {
+    expect(matchFields(list, { lat: 5, lon: 5, time: 50 }).map(x => x.id)).toEqual(['short', 'long']);
+    expect(matchFields(list, { lat: 5, lon: 5, time: 20 }).map(x => x.id)).toEqual(['before', 'long']);
+  });
+  it('returns nothing when no grid fits or none exist', () => {
+    expect(matchFields(list, { lat: 5, lon: 5, time: 500 })).toEqual([]);
+    expect(matchFields([], { lat: 5, lon: 5, time: 1 })).toEqual([]);
+  });
+  it('writes a signed range', () => {
+    expect(fmtRangeCm(-8.14, 12.36)).toBe('−8.1 to +12.4 CM');
+    expect(fmtRangeCm(0.4, 3)).toBe('+0.4 to +3.0 CM');
+  });
+});

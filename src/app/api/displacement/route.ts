@@ -1,7 +1,7 @@
 /**
  * /api/displacement – measured ground-motion grids from NISAR interferograms.
  *   ?lat=&lon=&time=   metadata of grids covering the point whose date pair spans the time (shortest pair first)
- *   ?all=1             the 50 most recently stored grids (metadata), to check what the site holds
+ *   ?all=1             the 200 most recently stored grids (metadata), to check what the site holds
  *   ?id=               the grid itself (compact JSON, see src/lib/displacement/field.ts)
  * Grids are uploaded by tools/nisar-grid through /api/displacement/ingest.
  */
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 
   if (sp.get('all')) {
     if (!env.DB) return json({ configured: false, fields: [] });
-    try { return json({ configured: true, fields: await listFields(env.DB, 50) }, 200, { 'Cache-Control': 'no-store' }); }
+    try { return json({ configured: true, fields: await listFields(env.DB, 200) }, 200, { 'Cache-Control': 'no-store' }); }
     catch (e) { console.error('[api/displacement]', e); return json({ configured: true, fields: [], error: 'Lookup failed.' }); }
   }
 

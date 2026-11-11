@@ -19,6 +19,9 @@ import { fetchAllGlobalEvents, type GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, CAUSE_LABELS } from '@/lib/eventDirectoryTypes';
 import { stormOf } from '@/lib/stormScale';
 import { buildReport, utcStamp, type EventReport } from '@/lib/eventReport';
+import { matchFields } from '@/lib/displacement/match';
+import { useMeasuredIndex } from '@/lib/useMeasured';
+import { MeasuredDisplacement } from '@/components/observatory/measured-displacement';
 import './report.css';
 
 type Phase = 'loading' | 'ready' | 'partial' | 'missing';
@@ -85,6 +88,8 @@ function EventReportInner({ id }: { id: string }) {
   const num = useMemo(() => (e ? headlineNumber(e) : null), [e]);
   const stamp = e ? utcStamp(e.time) : null;
   const disp = report?.displacement ?? null;
+  const measuredIndex = useMeasuredIndex();
+  const measured = e && e.type !== 'storm' ? matchFields(measuredIndex, e) : [];
 
   return (
     <main className="rp" style={cfg ? ({ '--c': cfg.color } as React.CSSProperties) : undefined}>
@@ -158,12 +163,15 @@ function EventReportInner({ id }: { id: string }) {
               {e.type === 'storm' ? (
                 <StormOutlook event={e} card className="rp-card rp-disp" />
               ) : (
+              <>
+              {measured.length > 0 && <MeasuredDisplacement meta={measured[0]} count={measured.length} variant="card" />}
               <section className="rp-card rp-disp">
-                <h3>SURFACE DISPLACEMENT</h3>
+                <h3>SURFACE DISPLACEMENT{disp.cm != null ? (measured.length > 0 ? ' · MODELLED ESTIMATE' : ' · ESTIMATED') : ''}</h3>
                 <div className="rp-big">{disp.label}</div>
                 <p>{disp.note}</p>
-                <small>Modelled from magnitude and depth, not measured. See NISAR observations below for real InSAR products that may contain this event.</small>
+                <small>Modelled from magnitude and depth, not measured.{measured.length > 0 ? ' The measured NISAR result is above; open it on terrain with OPEN IN 3D in the events list.' : ' See NISAR observations below for real InSAR products that may contain this event.'}</small>
               </section>
+              </>
               )}
               {e.type !== 'storm' && <NisarCoverage event={e} className="rp-card" />}
               {disp.rupture && (

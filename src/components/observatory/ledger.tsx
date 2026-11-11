@@ -8,6 +8,9 @@ import { useEventDirectory, type DirectoryFilters } from '@/lib/useEventDirector
 import type { EventType, GlobalEvent } from '@/lib/globalEvents';
 import { EVENT_TYPE_CONFIG, REGIONS, SORT_OPTIONS, TIME_PRESETS, type SortKey } from '@/lib/eventDirectoryTypes';
 import { estimateDisplacement } from '@/lib/eventPhysics';
+import { matchFields } from '@/lib/displacement/match';
+import { useMeasuredIndex } from '@/lib/useMeasured';
+import { MeasuredDisplacement } from './measured-displacement';
 import { RegionMap } from './region-map';
 import { WATCH_ADD_EVENT } from '@/lib/useWatchlist';
 import { StormOutlook } from './storm-outlook';
@@ -86,6 +89,7 @@ export interface LedgerProps {
 
 /** Typographic ledger of live events, driven by the directory's own filter, search and URL-sync hook. */
 export function Ledger({ onOpen, onPlace }: LedgerProps) {
+  const measuredIndex = useMeasuredIndex();
   const dir = useEventDirectory();
   const { filters, setFilters, clearFilters, filteredEvents, allEvents, sourceHealth, loading, rangeLoading, matchCount, totalCount, userLocation, locationError, loadMore, loadingMore, hasMore } = dir;
   const [advanced, setAdvanced] = useState(false);
@@ -289,6 +293,7 @@ export function Ledger({ onOpen, onPlace }: LedgerProps) {
         {rows.map((e, i) => {
           const h = headline(e), open = filters.selectedId === e.id, cfg = EVENT_TYPE_CONFIG[e.type];
           const disp = estimateDisplacement(e);
+          const measured = e.type === 'storm' ? [] : matchFields(measuredIndex, e);
           return (
             <li key={e.id} className="lg-row" data-open={open} style={{ '--c': cfg.color, '--d': `${Math.min(i, 14) * 28}ms` } as React.CSSProperties}>
               <button type="button" className="lg-main" aria-expanded={open} onClick={() => setFilters({ selectedId: open ? '' : e.id })}>
@@ -296,7 +301,7 @@ export function Ledger({ onOpen, onPlace }: LedgerProps) {
                 <span className="lg-num">
                   {h ? <><small>{h.prefix}</small><b className="ol ol-1">{h.value}</b>{h.suffix && <small className="lg-suffix">{h.suffix}</small>}</> : <span className="lg-glyph">{cfg.icon}</span>}
                 </span>
-                <span className="lg-where"><strong>{e.title}</strong><em>{coords(e)}</em></span>
+                <span className="lg-where"><strong>{e.title}</strong>{measured.length > 0 && <span className="lg-tag" title="A NISAR interferogram has been processed for this event">NISAR MEASURED</span>}<em>{coords(e)}</em></span>
                 <span className="lg-kind"><i />{cfg.label}</span>
                 <span className="lg-depth">{e.depth != null ? `${Math.round(e.depth)} KM` : '—'}<small>DEPTH</small></span>
                 <span className="lg-time">{ago(e.time)}<small>{new Date(e.time).toISOString().slice(0, 10)}</small></span>
@@ -316,7 +321,8 @@ export function Ledger({ onOpen, onPlace }: LedgerProps) {
                       <div><dt>{e.source === 'Smithsonian GVP' ? 'VEI' : 'Magnitude'}</dt><dd>{e.magnitude != null ? (e.source === 'Smithsonian GVP' ? Math.round(e.magnitude) : e.magnitude.toFixed(1)) : '—'}</dd></div>
                       <div><dt>Depth</dt><dd>{e.depth != null ? `${e.depth.toFixed(1)} KM` : '—'}</dd></div></>)}
                       {e.type === 'storm' && open && <StormOutlook event={e} className="lg-wide" />}
-                      {e.type !== 'storm' && <div className="lg-wide"><dt>Surface displacement</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>}
+                      {open && measured.length > 0 && <MeasuredDisplacement meta={measured[0]} count={measured.length} />}
+                      {e.type !== 'storm' && <div className="lg-wide"><dt>Surface displacement{disp.cm != null && (measured.length > 0 ? ' · modelled estimate' : ' · estimated')}</dt><dd>{disp.label}</dd><small>{disp.note}</small></div>}
                       {disp.rupture && <div><dt>Rupture area (est.)</dt><dd>{disp.rupture.areaKm2 < 10 ? disp.rupture.areaKm2.toFixed(1) : Math.round(disp.rupture.areaKm2).toLocaleString()} KM²</dd></div>}
                       {disp.rupture && <div><dt>Rupture size (est.)</dt><dd>{disp.rupture.lengthKm.toFixed(0)} × {disp.rupture.widthKm.toFixed(0)} KM</dd></div>}
                     </dl>

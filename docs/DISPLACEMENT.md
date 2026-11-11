@@ -3,6 +3,14 @@
 The Topo view can draw **measured** NISAR ground motion on real terrain. It is opt-in per event: a grid exists only after
 someone has processed an interferogram for that event. Nothing here is modelled; where there is no grid the view says so.
 
+## Where measured values show up
+
+- **Events list:** an event with a processed grid carries a green **NISAR MEASURED** tag. Opened, its *Surface displacement* row shows the measured
+  line-of-sight range (2nd to 98th percentile, cm), the pair's dates, track/frame/pass and maturity. The modelled estimate stays below it, labelled as an estimate.
+- **Full report:** the same measured card sits above the modelled estimate.
+- **3D view:** the grid on real terrain (below).
+- Events with no processed grid show only the modelled estimate, labelled *estimated*. One request (`/api/displacement?all=1`) feeds every row.
+
 ## What you see
 
 Open an earthquake or volcano in the **Events** ledger and press **OPEN IN 3D**.
@@ -76,7 +84,7 @@ Then Actions → *Process NISAR interferogram* → Run workflow, and fill in the
 
 - A grid is at most 256 × 256 int16 cells at 0.1 cm steps (about 175 KB as JSON), stored in D1 table `displacement_fields`.
 - `GET /api/displacement?lat=&lon=&time=` lists grids that contain the point and whose date pair spans `time`; `?id=` returns one.
-- `GET /api/displacement?all=1` lists the 50 most recently stored grids (metadata only): open it in a browser to see what the site holds.
+- `GET /api/displacement?all=1` lists the 200 most recently stored grids (metadata only): open it in a browser to see what the site holds.
 - `POST /api/displacement/ingest` stores one (`Authorization: Bearer $INGEST_SECRET`); `DELETE ?id=` removes one.
 - The wire format is defined in `src/lib/displacement/field.ts` and written by `tools/nisar-grid/nisar_grid.py`; a shared fixture test keeps the two in step.
 

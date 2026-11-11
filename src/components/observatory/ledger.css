@@ -114,3 +114,8 @@
 .lg-place select{background:rgba(255,255,255,.08);color:#fff;border:0;border-radius:999px;padding:5px 8px;font:500 11px var(--ob-mono);letter-spacing:.1em}
 .lg-place select option{background:#0b0c10}
 .lg-place button{background:none;border:0;color:#ffb28f;font:500 11px var(--ob-mono);letter-spacing:.14em;cursor:pointer;padding:4px 8px}
+
+/* events that have a processed NISAR interferogram */
+.lg-tag{display:block;justify-self:start;width:fit-content;margin:0;padding:2px 5px;font:600 8px/1 var(--font-mono,ui-monospace,monospace);letter-spacing:.12em;color:#34d399;border:1px solid rgba(52,211,153,.5);border-radius:2px;white-space:nowrap}
+.lg-measured dd{color:#34d399}
+.lg-measured small+small{display:block;margin-top:3px;opacity:.7}
