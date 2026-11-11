@@ -205,7 +205,7 @@ export function MeasuredTopoView({ event, onExit }: { event: GlobalEvent; onExit
     <div className="mv">
       <header className="mv-head">
         <div className="mv-title"><i /> <b>{field ? 'MEASURED · NISAR L-BAND INTERFEROGRAM' : 'TERRAIN'}</b><span>{event.title}</span></div>
-        <button type="button" className="mv-btn" onClick={onExit}>CLASSIC 3D VIEW</button>
+        <button type="button" className="mv-btn" onClick={onExit}>← ALL MEASURED EVENTS</button>
       </header>
 
       <div className="mv-body">

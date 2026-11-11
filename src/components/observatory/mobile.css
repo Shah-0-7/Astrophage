@@ -17,7 +17,7 @@
   .ob-right{gap:8px}
   .ob-live{padding:9px 12px;font-size:10px;letter-spacing:.16em}
   .wp-bell{width:36px;height:36px}
-  .ob-root[data-view=events] .ob-top::before{inset:0 0 -18px;background:linear-gradient(#000 80%,transparent)}
+  .ob-root[data-view=events] .ob-top::before,.ob-root[data-view=topo] .ob-top::before{inset:0 0 -18px;background:linear-gradient(#000 80%,transparent)}
 
   /* ── pass timeline: one compact card ── */
   .ob-time{left:8px;right:8px;width:auto;transform:none;bottom:max(8px,env(safe-area-inset-bottom));padding:8px 12px 4px;border-radius:18px}

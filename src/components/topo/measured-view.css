@@ -1,4 +1,4 @@
-.mv{display:flex;flex-direction:column;height:100%;min-height:0;background:#09090b;color:#e5e7eb}
+.mv{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding-top:var(--ob-top,84px);box-sizing:border-box;background:#09090b;color:#e5e7eb}
 .mv-head{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;background:rgba(9,9,11,.9)}
 .mv-title{flex:1;overflow:hidden;display:flex;align-items:center;gap:10px;min-width:0;font-family:var(--font-mono,ui-monospace,monospace);font-size:10px;letter-spacing:.12em}
 .mv-title i{width:7px;height:7px;border-radius:50%;background:#34d399;flex:none}

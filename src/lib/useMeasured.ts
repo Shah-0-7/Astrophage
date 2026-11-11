@@ -23,6 +23,13 @@ export function useMeasuredIndex(): FieldMeta[] {
   return metas;
 }
 
+/** The same index, plus whether the request has finished (so a page can tell "loading" from "nothing processed"). */
+export function useMeasuredIndexState(): { metas: FieldMeta[]; loaded: boolean } {
+  const [state, setState] = useState<{ metas: FieldMeta[]; loaded: boolean }>({ metas: [], loaded: false });
+  useEffect(() => { let alive = true; loadMeasuredIndex().then(m => { if (alive) setState({ metas: m, loaded: true }); }); return () => { alive = false; }; }, []);
+  return state;
+}
+
 export interface MeasuredSummary {
   /** 2nd and 98th percentile of line-of-sight change, cm (+ toward the satellite) */
   lo: number;

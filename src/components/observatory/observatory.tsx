@@ -131,17 +131,18 @@ function Inner({ initialView }: { initialView: ObView }) {
         <div className="ob-view-full" key="events">
           <Suspense fallback={null}><Ledger onOpen={openFromLedger} onPlace={openPlace} /></Suspense>
         </div>
+      ) : view === 'topo' ? (
+        <div className="ob-view-full" key="topo"><TopoCore3D /></div>
       ) : (
         <div className="ob-view" key={view}>
           {view === 'globe' && <GlobalSchematicGlobe focusId={globeFocus} />}
           {view === 'radar' && <EventRadar2D onOpen3D={e => openFromLedger('topo', e, window.innerWidth / 2, window.innerHeight / 2)} />}
-          {view === 'topo' && <TopoCore3D />}
         </div>
       )}
 
-      <TopBar view={view} onView={(v, x, y) => goTo(v, x, y)} health={sourceHealth} watch={watch} />
+      <TopBar view={view} onView={(v, x, y) => goTo(v, x, y, v === 'topo' ? () => setTopoEvent(null) : undefined)} health={sourceHealth} watch={watch} />
       <WatchPanel watch={watch} />
-      {view !== 'events' && <Timeline ticks={ticks} cutoffMs={cutoffMs} />}
+      {view !== 'events' && view !== 'topo' && <Timeline ticks={ticks} cutoffMs={cutoffMs} />}
 
       <Iris ref={iris} />
       <Loader onDone={noop} />

@@ -86,9 +86,9 @@ Be careful when quoting numbers from the app.
   the Topo view draws any that have been processed with `tools/nisar-grid` (see docs/DISPLACEMENT.md). The app itself does not download or unwrap files.
 - **Storm category** is computed from maximum sustained wind with the Saffir–Simpson thresholds. Storms with no reported
   wind show "Not reported" rather than a guess.
-- **The NISAR scenario overlays, pass timeline, coherence and displacement readouts on the Radar and Topo views are
+- **The NISAR scenario overlays, coherence and displacement readouts on the Radar view are
   simulated demo data** (`src/lib/mockData.ts`), marked **ESTIMATED** in the UI. They are not live NISAR products.
-  The **NISAR scenes (real)** layer, the **NISAR observations** blocks and the **OPEN IN 3D** measured view are the real ones.
+  The **NISAR scenes (real)** layer, the **NISAR coverage** blocks and the Topo tab's measured view are the real ones.
 
 ## Environment variables
 

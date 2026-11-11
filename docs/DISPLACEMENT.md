@@ -22,7 +22,10 @@ Open an earthquake or volcano in the **Events** ledger and press **OPEN IN 3D**.
 - No grid yet: the view shows the terrain, says nothing has been processed, and gives the command to process the first
   interferogram NASA's catalogue lists for the event.
 
-The classic procedural Topo scene (opened from the tab bar) is unchanged and its readouts remain labelled **ESTIMATED**.
+The **Topo tab** opens on a directory of the events that have a processed grid (newest or largest first, searchable, filterable by
+type). Each row shows the pair dates, track and the measured range; clicking one loads this view, and **← All measured events**
+returns to the directory. Grids that match no event in the directory are listed too, so an uploaded grid is never hidden.
+The old procedural Topo scene and its simulated readouts have been removed.
 
 ## What the numbers mean (and don't)
 
