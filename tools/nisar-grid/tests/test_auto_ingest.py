@@ -60,6 +60,9 @@ def test_urls_are_well_formed():
     u = ai.asf_url(86.5, 28.0, T("20260701T000000"), T("20261101T000000"))
     assert "dataset=NISAR" in u and "processingLevel=GUNW" in u and "POINT%2886.5000+28.0000%29" in u and "output=geojson" in u
     assert "minmagnitude=6" in ai.usgs_url(6.0, 30, T("20261101T000000"))
+    assert "limit=50" in ai.usgs_url(6.0, 30, T("20261101T000000"))
+    assert "limit=400" in ai.usgs_url(5.0, 365, T("20261101T000000"), 400)
+    assert "limit=20000" in ai.usgs_url(5.0, 365, T("20261101T000000"), 10**9) and "limit=1" in ai.usgs_url(5.0, 365, T("20261101T000000"), 0)
 
 
 def make_fetch(have_grid=False, features=None, configured=True):
@@ -198,3 +201,10 @@ def test_a_rejected_token_stops_the_whole_run():
         raise ng.AuthError("NASA sent the request to the Earthdata login page")
     stats, _, logs = run(f, process=deny)
     assert stats["failed"] == 1 and any(l.startswith("  STOP") for l in logs)
+
+
+def test_a_hit_limit_is_reported_so_a_cut_off_search_is_not_mistaken_for_a_complete_one():
+    _, _, logs = run(make_fetch(), limit=1)
+    assert any("hit the limit of 1" in l for l in logs)
+    _, _, logs = run(make_fetch(), limit=50)
+    assert not any("hit the limit" in l for l in logs)

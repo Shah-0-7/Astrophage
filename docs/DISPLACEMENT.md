@@ -62,17 +62,18 @@ Add `--dry-run --out grid.json` to write the grid without uploading. A downloade
 
 ## Automatic mode (no searching per event)
 
-`tools/nisar-grid/auto_ingest.py` does the manual steps for you. For each earthquake of magnitude 6 or more in the last 45 days it
+`tools/nisar-grid/auto_ingest.py` does the manual steps for you. For each earthquake of magnitude 5 or more in the last 180 days (biggest first, up to `--limit` 400) it
 1. skips the event if the site already has a grid for it;
 2. asks ASF's public search API (`api.daac.asf.alaska.edu/services/search/param`, no login) for NISAR GUNW files that contain the epicentre;
 3. keeps a pair whose reference date is before the event and whose secondary date is after it (shortest span first);
 4. reads that file with your Earthdata token, builds the grid and uploads it.
 
-Events with no spanning pair are skipped; they are tried again on the next run. Each run processes at most `--max-new` (default 2) new files.
+Events with no spanning pair are skipped; they are tried again on the next run. Each run processes at most `--max-new` (the workflow's default is 8) new files; the 6-hourly runs keep working through the backlog. Smaller quakes and aftershocks that fall inside a grid already stored count as covered, so they appear in the Topo directory without another download.
 
 **On a schedule:** the workflow *Auto-process NISAR interferograms* runs every 6 hours. Add the secrets `INGEST_SECRET` and `EARTHDATA_TOKEN` and the
 variable `SITE_URL` (same as for the manual workflow), then Actions → *Auto-process NISAR interferograms* → Run workflow once with **dry run** ticked to see what it finds.
 **By hand:** `python auto_ingest.py --site https://YOUR-SITE --dry-run`.
+**Catching up on a backlog:** Run workflow with `min_mag` 5, `days` 365, `limit` 500 and `max_new` 30. The number of events this finds is set by NISAR, not by the script: only quakes that NISAR imaged both before and after produce a grid.
 
 If a run stops with *NASA sent the request to the Earthdata login page*, NASA did not accept the token: make a new one, paste it into the `EARTHDATA_TOKEN` secret without the word `Bearer` or quotes, and check that **Alaska Satellite Facility Data Access** is approved under Authorized Apps.
 

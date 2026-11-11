@@ -1,7 +1,7 @@
 name: Auto-process NISAR interferograms
 
-# Every 6 hours: look for recent big earthquakes, find a NISAR GUNW pair that spans each one, build the ground-motion grid
-# and upload it to the site. Needs secrets INGEST_SECRET and EARTHDATA_TOKEN and the variable SITE_URL (docs/DISPLACEMENT.md).
+# Every 6 hours: look for recent earthquakes (M5+ over the last 180 days), find a NISAR GUNW pair that spans each one, build the
+# ground-motion grid and upload it to the site. Events that already have a grid are skipped, so each run only does new work. Needs secrets INGEST_SECRET and EARTHDATA_TOKEN and the variable SITE_URL (docs/DISPLACEMENT.md).
 on:
   schedule:
     - cron: "17 */6 * * *"
@@ -9,13 +9,16 @@ on:
     inputs:
       min_mag:
         description: "Smallest earthquake magnitude to look at"
-        default: "6.0"
+        default: "5.0"
       days:
         description: "How many days back to look"
-        default: "45"
+        default: "180"
       max_new:
         description: "Most new files to process in this run"
-        default: "2"
+        default: "8"
+      limit:
+        description: "Most earthquakes to look at (biggest first)"
+        default: "400"
       dry_run:
         description: "Only report what would be processed (no upload)"
         type: boolean
@@ -52,8 +55,9 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL }}
           INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
           EARTHDATA_TOKEN: ${{ secrets.EARTHDATA_TOKEN }}
-          MIN_MAG: ${{ inputs.min_mag || '6.0' }}
-          DAYS: ${{ inputs.days || '45' }}
-          MAX_NEW: ${{ inputs.max_new || '2' }}
+          MIN_MAG: ${{ inputs.min_mag || '5.0' }}
+          DAYS: ${{ inputs.days || '180' }}
+          MAX_NEW: ${{ inputs.max_new || '8' }}
+          LIMIT: ${{ inputs.limit || '400' }}
           DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
-        run: python auto_ingest.py --site "$SITE_URL" --min-mag "$MIN_MAG" --days "$DAYS" --max-new "$MAX_NEW" $DRY
+        run: python auto_ingest.py --site "$SITE_URL" --min-mag "$MIN_MAG" --days "$DAYS" --max-new "$MAX_NEW" --limit "$LIMIT" $DRY

@@ -5,6 +5,7 @@ ground-motion grid and upload it, with no manual searching. Meant to run on a sc
 
     python auto_ingest.py --site https://YOUR-SITE --min-mag 6 --days 45 --max-new 2
     python auto_ingest.py --site https://YOUR-SITE --dry-run          # look, but do not download or upload
+    python auto_ingest.py --site https://YOUR-SITE --min-mag 5 --days 365 --limit 500 --max-new 30   # catch up on a backlog
 
 Per event:
   1. skip it if the site already has a grid for it;
@@ -46,9 +47,9 @@ def fetch_json(url: str, timeout: int = 60) -> object:
 
 # ------------------------------------------------------------------ events
 
-def usgs_url(min_mag: float, days: float, now_ms: float) -> str:
+def usgs_url(min_mag: float, days: float, now_ms: float, limit: int = 50) -> str:
     start = datetime.fromtimestamp(now_ms / 1000 - days * 86400, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    q = {"format": "geojson", "minmagnitude": f"{min_mag:g}", "starttime": start, "orderby": "magnitude", "limit": "50"}
+    q = {"format": "geojson", "minmagnitude": f"{min_mag:g}", "starttime": start, "orderby": "magnitude", "limit": str(max(1, min(int(limit), 20000)))}
     return USGS + "?" + urllib.parse.urlencode(q)
 
 
@@ -150,7 +151,7 @@ def process_event(ev: dict, pair: dict, *, site: str | None, ingest: str | None,
     return f"uploaded {wire['id']}"
 
 
-def run(*, site: str, min_mag: float, days: float, max_new: int, maturity: str, dry: bool, now_ms: float | None = None,
+def run(*, site: str, min_mag: float, days: float, max_new: int, maturity: str, dry: bool, limit: int = 50, now_ms: float | None = None,
         fetch: Fetch = fetch_json, process: Callable[..., str] = process_event, ingest: str | None = None, earthdata: str | None = None,
         log: Callable[[str], None] = print) -> dict:
     now_ms = now_ms if now_ms is not None else datetime.now(timezone.utc).timestamp() * 1000
@@ -160,9 +161,9 @@ def run(*, site: str, min_mag: float, days: float, max_new: int, maturity: str, 
         log(f"STOP: {why}")
         stats["failed"] = 1
         return stats
-    events = parse_events(fetch(usgs_url(min_mag, days, now_ms)))
+    events = parse_events(fetch(usgs_url(min_mag, days, now_ms, limit)))
     stats["events"] = len(events)
-    log(f"{len(events)} earthquakes of M{min_mag:g}+ in the last {days:g} days")
+    log(f"{len(events)} earthquakes of M{min_mag:g}+ in the last {days:g} days" + (f" (hit the limit of {limit}; raise --limit to see more)" if len(events) >= limit else ""))
     attempted = 0
     for ev in events:
         tag = f"M{ev['mag']:.1f} {ev['title']}"
@@ -201,6 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--min-mag", type=float, default=6.0)
     ap.add_argument("--days", type=float, default=45.0, help="how far back to look for earthquakes")
     ap.add_argument("--max-new", type=int, default=2, help="most new files to process in one run")
+    ap.add_argument("--limit", type=int, default=50, help="most earthquakes to look at (biggest first); raise it for a low --min-mag or a long --days")
     ap.add_argument("--maturity", default="PROVISIONAL", choices=["PROVISIONAL", "BETA", "VALIDATED"])
     ap.add_argument("--dry-run", action="store_true", help="list what would be processed, still reads the files but uploads nothing")
     a = ap.parse_args(argv)
@@ -209,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.exit("INGEST_SECRET is not set")
     if not earthdata:
         print("warning: EARTHDATA_TOKEN is not set; NASA will refuse the download", file=sys.stderr)
-    stats = run(site=a.site, min_mag=a.min_mag, days=a.days, max_new=a.max_new, maturity=a.maturity, dry=a.dry_run, ingest=ingest, earthdata=earthdata)
+    stats = run(site=a.site, min_mag=a.min_mag, days=a.days, max_new=a.max_new, maturity=a.maturity, dry=a.dry_run, limit=a.limit, ingest=ingest, earthdata=earthdata)
     # Events without a pair are normal. A failed download or upload turns the run red so it is not mistaken for success.
     return 1 if stats["failed"] else 0
 
