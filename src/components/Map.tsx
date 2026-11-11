@@ -11,7 +11,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { Map as MapLibreMap, Marker, Source, Layer, useControl, NavigationControl } from 'react-map-gl/maplibre';
 import { loadWorldVector, type WorldVector } from '@/lib/worldVector';
 import PLACES from '@/data/places.json';
@@ -20,7 +19,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { MapboxOverlayProps } from '@deck.gl/mapbox';
 import { GeoJsonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { useStore } from '@/lib/store';
-import { estimateDisplacement } from '@/lib/eventPhysics';
+import { EventReticle } from '@/components/observatory/event-reticle';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES, PASS_EPOCHS } from '@/lib/mockData';
 import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
@@ -981,79 +980,13 @@ export default function MapComponent() {
         )}
 
         {/* ── Selected Global Event Marker ── */}
-        {/* ── Selected Global Event Marker ── */}
         {selectedGlobalEvent && selectedGlobalEvent.geometry.type === 'Point' && (
           <Marker
             longitude={(selectedGlobalEvent.geometry as any).coordinates[0]}
             latitude={(selectedGlobalEvent.geometry as any).coordinates[1]}
             anchor="center"
           >
-            <motion.div 
-              key={selectedGlobalEvent.id}
-              className="relative w-0 h-0 pointer-events-none"
-              initial={{ opacity: 0, scale: 0.8, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: 1.5, duration: 0.4, ease: "easeOut" }}
-            >
-              {/* SVG connecting lines */}
-              <svg className="absolute overflow-visible z-0 pointer-events-none" style={{ left: 0, top: -100, width: 200, height: 200 }}>
-                <defs>
-                  <linearGradient id="branchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0.3" />
-                  </linearGradient>
-                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="2.5" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-                
-                {/* Branch to Top Tile (Magnitude) */}
-                <path d="M 24 100 C 65 100, 75 30, 120 30" fill="none" stroke="url(#branchGrad)" strokeWidth="3" filter="url(#glow)" />
-                
-                {/* Branch to Bottom Tile (Displacement) */}
-                <path d="M 24 100 C 65 100, 75 170, 120 170" fill="none" stroke="url(#branchGrad)" strokeWidth="3" filter="url(#glow)" />
-              </svg>
-
-              {/* Center Node (Event Symbol) */}
-              <div className="absolute -translate-x-1/2 -translate-y-1/2 z-10 bg-[#09090b]/95 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] rounded-full w-12 h-12 flex items-center justify-center backdrop-blur-md">
-                <span className="text-[22px] font-bold text-red-500" style={{ textShadow: '0 0 10px rgba(239,68,68,0.8)' }}>
-                  {selectedGlobalEvent.source === 'seismic' ? '▲' : selectedGlobalEvent.source.toUpperCase().charAt(0)}
-                </span>
-              </div>
-
-              {/* Top Tile (Magnitude) */}
-              <div className="absolute left-[120px] top-[-70px] -translate-y-1/2 flex items-center z-10">
-                <div className="bg-[#09090b]/95 text-white py-5 rounded-2xl border border-white/20 shadow-lg backdrop-blur-md flex flex-col items-center justify-center whitespace-nowrap" style={{ paddingLeft: '32px', paddingRight: '32px' }}>
-                  <span className="font-mono text-[12px] text-white/50 tracking-wider mb-2 uppercase">Magnitude</span>
-                  <span className="font-mono text-[22px] font-bold">
-                    {selectedGlobalEvent.source === 'seismic' 
-                      ? `M ${((selectedGlobalEvent.properties as any).magnitude || 0).toFixed(1)}` 
-                      : ((selectedGlobalEvent.properties as any).headline ?? 'N/A')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom Tile (Displacement) */}
-              <div className="absolute left-[120px] top-[70px] -translate-y-1/2 flex items-center z-10">
-                <div className="bg-[#09090b]/95 text-white py-5 rounded-2xl border border-white/20 shadow-lg backdrop-blur-md flex flex-col items-center justify-center whitespace-nowrap" style={{ paddingLeft: '32px', paddingRight: '32px' }}>
-                  <span className="font-mono text-[12px] text-white/50 tracking-wider mb-2 uppercase">Est. Surface Displacement</span>
-                  <span className="font-mono text-[22px] font-bold">
-                    {(() => {
-                      const p = selectedGlobalEvent.properties as any;
-                      if (p.displacement_label) return p.displacement_label;
-                      if (selectedGlobalEvent.source === 'seismic' && p.magnitude != null) {
-                        return estimateDisplacement({ type: 'tectonic', magnitude: p.magnitude, depth: p.depth_km ?? null, displacement_cm: null }).label;
-                      }
-                      return 'N/A';
-                    })()}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
+            <EventReticle feature={selectedGlobalEvent} />
           </Marker>
         )}
       </MapLibreMap>
