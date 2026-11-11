@@ -1288,9 +1288,7 @@ function SourceHealthStrip({ health }: { health: SourceHealth[] }) {
         className="flex w-full items-center gap-2 text-left" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit' }}>
         <span className="panel-label" style={{ margin: 0 }}>SOURCE STATUS</span>
         {!open && (
-          <span className="flex items-center gap-1 font-mono text-[8px] text-white/40">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot, boxShadow: `0 0 4px ${dot}` }} />{summary}
-          </span>
+          <span role="img" aria-label={summary} title={summary} className="inline-block flex-shrink-0 rounded-full" style={{ width: 8, height: 8, background: dot, boxShadow: `0 0 6px ${dot}` }} />
         )}
         <span aria-hidden className="ml-auto font-mono text-[9px] text-white/40">{open ? '−' : '+'}</span>
       </button>

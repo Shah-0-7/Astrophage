@@ -187,12 +187,8 @@ export function Timeline({ ticks, cutoffMs = null }: { ticks: Array<{ at: number
           ))}
         </div>
         <div className="ob-epoch">
-          {range ? new Date(cutoffInRange(range, progress)).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : cutoffMs ? new Date(cutoffMs).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : pass ? pass.date.slice(0, 10) : '—'}
-          <small>{range ? `REPLAY · LAST ${playbackWindow === '24h' ? '24 HOURS' : '7 DAYS'}` : cutoffMs ? 'REPLAY · ALL EVENTS' : `${pass?.label ?? '—'} · 12-DAY REPEAT`}</small>
-        </div>
-        <div className="ob-accum">
-          <div><small>ΔD ACCUM</small>{pass?.accumDisplacement?.toFixed(1) ?? '—'} <span>MM</span></div>
-          <div className="ob-resid"><small>RESIDUAL</small>±{pass?.residualError?.toFixed(1) ?? '—'} <span>MM</span></div>
+          {range ? new Date(cutoffInRange(range, progress)).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : cutoffMs != null ? new Date(cutoffMs).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'}
+          <small>{range ? `REPLAY · LAST ${playbackWindow === '24h' ? '24 HOURS' : '7 DAYS'}` : 'REPLAY · ALL EVENTS'}</small>
         </div>
       </div>
       <div

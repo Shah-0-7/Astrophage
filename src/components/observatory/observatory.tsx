@@ -121,8 +121,8 @@ function Inner({ initialView }: { initialView: ObView }) {
   const currentPassIndex = useStore(s => s.currentPassIndex);
   const cutoffMs = useMemo(() => {
     if (playbackWindow !== 'all') return null;
-    const end = periodOf(events, { windowId: 'all', anchor: playbackAnchor, progress: currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1) }).end;
-    return end > 0 ? end : null;
+    const p = periodOf(events, { windowId: 'all', anchor: playbackAnchor, progress: currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1) });
+    return p.start != null ? p.end : null;
   }, [events, playbackWindow, playbackAnchor, currentPassIndex]);
 
   return (
