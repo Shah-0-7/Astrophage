@@ -20,6 +20,10 @@ import type { MapboxOverlayProps } from '@deck.gl/mapbox';
 import { GeoJsonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { useStore } from '@/lib/store';
 import { EventReticle } from '@/components/observatory/event-reticle';
+import { EVENT_TYPE_CONFIG } from '@/lib/eventDirectoryTypes';
+import { globalEventToFeature } from '@/lib/eventFeature';
+import { useRadarEvents } from '@/lib/useRadarEvents';
+import type { GlobalEvent } from '@/lib/globalEvents';
 import { useNISARData } from '@/lib/useNISARData';
 import { TARGET_NODES, NODE_BOUNDING_BOXES, PASS_EPOCHS } from '@/lib/mockData';
 import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
@@ -101,11 +105,6 @@ const STATUS_PULSE: Record<string, string> = {
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeOutBack = (t: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
-// ── Magnitude → radius (metres) ─────────────────────────────
-function magToRadius(mag: number): number {
-  return Math.pow(10, (mag - 3.5) * 0.6) * 18000;
-}
-
 // ── Magnitude → RGBA colour (green→yellow→orange→red) ───────
 function magToColor(mag: number): [number, number, number, number] {
   if (mag >= 7.0) return [239, 68,  68,  230];
@@ -114,12 +113,15 @@ function magToColor(mag: number): [number, number, number, number] {
   return                 [74,  222, 128, 180];
 }
 
-// ── Format epoch ms as human-readable date/time ─────────────
-function fmtTime(ms: number): string {
-  return new Date(ms).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
-  });
+// ── Directory events: colour by type, size by magnitude ──────
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function eventRadiusPx(e: GlobalEvent): number {
+  if (e.type === 'tectonic' || e.type === 'induced_seismicity' || e.type === 'mining') return Math.max(3, Math.min(17, 3 + (((e.magnitude ?? 4.5) - 4) * 2.6)));
+  if (e.type === 'volcanic') return 6 + Math.min(6, e.magnitude ?? 0);
+  return 6;
 }
 
 /** DeckGL overlay injected into MapLibre's own WebGL context — zero drift guaranteed */
@@ -174,8 +176,7 @@ export default function MapComponent() {
   }, []);
 
   // Live earthquake + fault data
-  const { earthquakes, faultLines, status, lastUpdated, refetch } = useEarthquakeData(4.5, 300);
-  const [selectedEq, setSelectedEq] = useState<USGSEarthquake | null>(null);
+  const { faultLines } = useEarthquakeData(4.5, 300);
 
   // Seismic event triggers: which passes fire events on which nodes
   const SEISMIC_EVENTS: Record<number, string[]> = {
@@ -202,6 +203,8 @@ export default function MapComponent() {
 
   // SSE unified stream – real-time telemetry from all Phase 2 sources
   const stream = useSSEStream();
+  const directoryEvents = useStore(s => s.directoryEvents);
+  const selectedId = useStore(s => (s.selectedGlobalEvent?.properties as { global_id?: string } | undefined)?.global_id ?? s.selectedGlobalEvent?.id ?? null);
 
   // Layer toggle state
   const [layerConfig, setLayerConfig] = useState<MapLayerConfig>({
@@ -293,6 +296,8 @@ export default function MapComponent() {
     ];
   }, [isLight, worldVec, labelZoom]);
 
+  const { listed } = useRadarEvents();
+
   const layers = useMemo(() => {
     const isFiltered  = phaseFilterMode === 'FILTERED';
     const epochFactor = currentPassIndex / 17;
@@ -301,7 +306,6 @@ export default function MapComponent() {
     // Playback cutoff: map scrubber progress onto each feed's actual time span
     const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
     const range = windowRange(playbackWindow, playbackAnchor);
-    const visibleQuakes = filterByPlayback(earthquakes, q => q.time, progress, range);
     const visibleSeismic = filterByPlayback(
       stream.seismic,
       f => new Date((f.properties as any).event_time).getTime(),
@@ -418,48 +422,31 @@ export default function MapComponent() {
         })
       ] : []),
 
-      // ── USGS live earthquake scatter dots ───────────────────
-      new ScatterplotLayer<USGSEarthquake>({
-        id: 'usgs-earthquakes',
-        data: visibleQuakes,
-        getPosition: (d) => d.coords,
-        getRadius:   (d) => magToRadius(d.magnitude),
-        getFillColor:(d) => magToColor(d.magnitude),
-        getLineColor: [255, 255, 255, 60] as [number, number, number, number],
+      // ── Directory events (the same ones the Events page lists), inside the timeline's period ──
+      new ScatterplotLayer<GlobalEvent>({
+        id: 'radar-events',
+        data: listed,
+        getPosition: (d) => [d.lon, d.lat],
+        getRadius:   (d) => eventRadiusPx(d),
+        getFillColor:(d) => [...hexToRgb(EVENT_TYPE_CONFIG[d.type]?.color ?? '#ffffff'), 200] as [number, number, number, number],
+        getLineColor: (d) => (d.id === selectedId ? [255, 255, 255, 255] : [255, 255, 255, 70]) as [number, number, number, number],
+        getLineWidth: (d) => (d.id === selectedId ? 2 : 1),
         stroked: true,
         filled: true,
-        lineWidthMinPixels: 1,
-        radiusUnits: 'meters',
-        radiusMinPixels: 3,
-        radiusMaxPixels: 28,
-        onClick: ({ object }) => { 
-          if (object) {
-            setSelectedEq(object);
-            const feature = stream.seismic.find(f => f.id === object.id) || {
-              id: object.id,
-              source: 'seismic',
-              geometry: { type: 'Point', coordinates: [object.coords[0], object.coords[1]] },
-              properties: { magnitude: object.magnitude, place: object.place, event_time: object.time, depth_km: object.coords[2] }
-            };
-            setSelectedGlobalEvent(feature as any);
-            
-            const evtTime = new Date(object.time).getTime();
-            let closestIdx = 0;
-            let minDiff = Infinity;
-            import('@/lib/mockData').then(({ PASS_EPOCHS }) => {
-              PASS_EPOCHS.forEach((pass, idx) => {
-                const diff = Math.abs(new Date(pass.date).getTime() - evtTime);
-                if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
-              });
-              setCurrentPassIndex(closestIdx);
-            });
-          }
+        lineWidthUnits: 'pixels',
+        radiusUnits: 'pixels',
+        pickable: true,
+        autoHighlight: true,
+        onClick: ({ object }) => {
+          if (!object) return;
+          setSelectedGlobalEvent(globalEventToFeature(object));
+          setFlyToCoords([object.lon, object.lat]);
         },
-        updateTriggers: { getRadius: visibleQuakes.length, getFillColor: visibleQuakes.length },
+        updateTriggers: { getLineColor: selectedId, getLineWidth: selectedId, getFillColor: listed.length, getRadius: listed.length },
         // New events swell from nothing and fade in rather than snapping into place.
         transitions: {
-          getRadius: { duration: 900, easing: easeOutBack, enter: () => [0] },
-          getFillColor: { duration: 700, easing: easeOutCubic, enter: (v: number[]) => [v[0], v[1], v[2], 0] },
+          getRadius: { duration: 700, easing: easeOutBack, enter: () => [0] },
+          getFillColor: { duration: 600, easing: easeOutCubic, enter: (v: number[]) => [v[0], v[1], v[2], 0] },
         },
       }),
 
@@ -496,7 +483,7 @@ export default function MapComponent() {
         }),
       ] : []),
     ];
-  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, playbackWindow, playbackAnchor, earthquakes, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom, nisar.scenes]);
+  }, [filteredFeatures, activeScenario.id, phaseFilterMode, coherenceThreshold, activeNode, currentPassIndex, playbackWindow, playbackAnchor, faultLines, stream.seismic, layerConfig, aboveHeatmapZoom, nisar.scenes, listed, selectedId]);
 
 
   // Stable tooltip callback — memoized so DeckGLOverlay doesn't rebuild each render
@@ -513,6 +500,19 @@ export default function MapComponent() {
           <div style="color:rgba(255,255,255,.6);font-size:9px;">${d(p.start)}${p.track != null ? ` · track ${p.track}` : ''}${p.frame != null ? ` · frame ${p.frame}` : ''}</div>${pair}
           <div style="color:rgba(255,255,255,.35);font-size:8px;margin-top:3px;letter-spacing:.1em;">NISAR RECORD</div></div>`,
         style: { backgroundColor: 'rgba(9,9,11,.92)', border: '1px solid rgba(255,255,255,.2)', borderRadius: '2px', color: 'white', padding: '10px 12px' },
+      };
+    }
+    if ('cause' in object && 'type' in object && 'lat' in object) {
+      const ev = object as GlobalEvent;
+      const cfg = EVENT_TYPE_CONFIG[ev.type];
+      const esc = (x: string) => x.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+      return {
+        html: `<div style="font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.6;">
+          <div style="font-weight:700;letter-spacing:.14em;font-size:9px;color:${cfg?.color ?? '#fff'};text-transform:uppercase;">${esc(cfg?.label ?? ev.type)}${ev.magnitude != null ? ` · ${ev.source === 'Smithsonian GVP' ? 'VEI ' + Math.round(ev.magnitude) : 'M' + ev.magnitude.toFixed(1)}` : ''}</div>
+          <div style="color:white;max-width:220px;margin:2px 0;">${esc(ev.title)}</div>
+          <div style="color:rgba(255,255,255,.45);font-size:8px;letter-spacing:.08em;">${new Date(ev.time).toISOString().slice(0, 16).replace('T', ' ')} UTC</div>
+          <div style="color:rgba(255,255,255,.3);font-size:8px;margin-top:3px;letter-spacing:.1em;">Click for details</div></div>`,
+        style: { backgroundColor: 'rgba(9,9,11,.92)', border: `1px solid ${cfg?.color ?? '#fff'}66`, borderRadius: '2px', color: 'white', backdropFilter: 'blur(16px)', padding: '10px 12px' },
       };
     }
     if ('magnitude' in object) {
@@ -597,156 +597,16 @@ export default function MapComponent() {
         </div>
       )}
 
-      {/* ── USGS feed status badge ───────────────────────────── */}
-      <div
-        className="absolute z-30 flex items-center gap-2"
-        style={{ top: 8, right: 130, pointerEvents: 'none' }}
-      >
-        <div
-          className="flex items-center gap-1.5 px-2 py-1"
-          style={{
-            background: 'rgba(9,9,11,0.82)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <div
-            className={`w-1.5 h-1.5 rounded-full ${status === 'loading' ? 'animate-pulse' : ''}`}
-            style={{
-              background: status === 'ok' ? '#4ade80'
-                        : status === 'error' ? '#ef4444'
-                        : '#fb923c',
-            }}
-          />
-          <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>
-            USGS M4.5+
-          </span>
+      {/* ── Events in the timeline's period ───────────────────── */}
+      <div className="absolute z-30 flex items-center gap-2" style={{ top: 8, right: 130, pointerEvents: 'none' }}>
+        <div className="flex items-center gap-1.5 px-2 py-1" style={{ background: 'rgba(9,9,11,0.82)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)' }}>
+          <div className={`w-1.5 h-1.5 rounded-full ${directoryEvents.length === 0 ? 'animate-pulse' : ''}`} style={{ background: directoryEvents.length > 0 ? '#4ade80' : '#fb923c' }} />
+          <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>EVENTS</span>
           <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>
-            {status === 'ok' ? `${earthquakes.length} EVT` : status.toUpperCase()}
+            {directoryEvents.length === 0 ? 'LOADING' : `${listed.length} OF ${directoryEvents.length}`}
           </span>
-          {lastUpdated && (
-            <span className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)' }}>
-              · {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
         </div>
-        <button
-          onClick={refetch}
-          className="tac-btn text-[8px] h-6 px-2"
-          style={{ pointerEvents: 'auto' }}
-          title="Refresh earthquake feed"
-        >
-          ↺
-        </button>
       </div>
-
-      {/* ── Selected earthquake event panel ─────────────────── */}
-      {selectedEq && (
-        <div
-          className="absolute z-30"
-          style={{
-            top: 56, right: 12,
-            width: 268,
-            background: 'rgba(9,9,11,0.94)',
-            border: '1px solid rgba(239,68,68,0.35)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 0 24px rgba(239,68,68,0.15)',
-          }}
-        >
-          {/* Panel header */}
-          <div
-            className="flex items-center justify-between px-3 py-2"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ background: magToColor(selectedEq.magnitude).slice(0,3).map(v=>`${v}`).join('') ? `rgb(${magToColor(selectedEq.magnitude).slice(0,3).join(',')})` : '#ef4444' }}
-              />
-              <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.18em' }}>SEISMIC EVENT</span>
-            </div>
-            <button
-              onClick={() => setSelectedEq(null)}
-              className="font-mono text-[11px] text-white/40 hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Magnitude hero */}
-          <div className="px-3 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-end gap-3">
-              <div>
-                <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em', marginBottom: 2 }}>MAGNITUDE</p>
-                <p
-                  className="font-mono font-bold leading-none"
-                  style={{
-                    fontSize: 42,
-                    color: `rgb(${magToColor(selectedEq.magnitude).slice(0,3).join(',')})`,
-                    textShadow: `0 0 20px rgb(${magToColor(selectedEq.magnitude).slice(0,3).join(',')})`,
-                  }}
-                >
-                  {selectedEq.magnitude.toFixed(1)}
-                </p>
-              </div>
-              <div className="mb-2">
-                {selectedEq.tsunami === 1 && (
-                  <div
-                    className="flex items-center gap-1 px-2 py-0.5 mb-1"
-                    style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.4)' }}
-                  >
-                    <span style={{ fontSize: 10 }}>🌊</span>
-                    <span className="font-mono" style={{ fontSize: 8, color: '#60a5fa', letterSpacing: '0.12em' }}>TSUNAMI WARNING</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1 px-2 py-0.5"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}>SIG</span>
-                  <span className="font-mono font-bold" style={{ fontSize: 11, color: 'white' }}>{selectedEq.sig}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Event details */}
-          <div className="px-3 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.15em', marginBottom: 4 }}>LOCATION</p>
-            <p className="font-mono" style={{ fontSize: 11, color: 'white', lineHeight: 1.4 }}>{selectedEq.place}</p>
-          </div>
-
-          <div className="px-3 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.15em', marginBottom: 4 }}>ORIGIN TIME</p>
-            <p className="font-mono" style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)' }}>{fmtTime(selectedEq.time)}</p>
-          </div>
-
-          {/* Grid: coords + depth */}
-          <div className="grid grid-cols-3 px-3 py-2.5" style={{ gap: '1px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {[
-              { label: 'LAT', value: selectedEq.coords[1].toFixed(3) + '°' },
-              { label: 'LON', value: selectedEq.coords[0].toFixed(3) + '°' },
-              { label: 'DEPTH', value: selectedEq.coords[2].toFixed(1) + ' km' },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px' }}>
-                <p className="font-mono" style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.12em', marginBottom: 2 }}>{label}</p>
-                <p className="font-mono font-bold" style={{ fontSize: 10, color: 'white' }}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* USGS link */}
-          <div className="px-3 py-2">
-            <a
-              href={selectedEq.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              style={{ fontSize: 9, color: 'rgba(239,68,68,0.7)', letterSpacing: '0.12em' }}
-            >
-              <span>↗</span> VIEW ON USGS
-            </a>
-          </div>
-        </div>
-      )}
 
       <MapLibreMap
         ref={mapRef}
@@ -1106,31 +966,17 @@ export default function MapComponent() {
         }}
       >
         <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', letterSpacing: '0.2em', marginBottom: 6, textTransform: 'uppercase' }}>
-          Node Matrix
+          Event type
         </p>
-        {Object.entries(CATEGORY_COLOR).map(([cat, c]) => (
-          <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-            <span style={{ color: c.stroke, fontSize: 9 }}>{c.icon}</span>
-            <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.48)' }}>{cat}</span>
+        {(Object.keys(EVENT_TYPE_CONFIG) as Array<keyof typeof EVENT_TYPE_CONFIG>).filter(t => directoryEvents.some(e => e.type === t)).map(t => (
+          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: EVENT_TYPE_CONFIG[t].color, flexShrink: 0 }} />
+            <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.48)' }}>{EVENT_TYPE_CONFIG[t].label}</span>
           </div>
         ))}
+        <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>Dot size = magnitude</p>
 
-        {/* Magnitude scale */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8, paddingTop: 8 }}>
-          <p className="font-mono" style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', letterSpacing: '0.2em', marginBottom: 6, textTransform: 'uppercase' }}>
-            Magnitude
-          </p>
-          {[
-            { label: 'M7.0+', color: '#ef4444' },
-            { label: 'M6.0–6.9', color: '#fb923c' },
-            { label: 'M5.0–5.9', color: '#facc15' },
-            { label: 'M4.5–4.9', color: '#4ade80' },
-          ].map(({ label, color }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <span className="font-mono" style={{ fontSize: 9, color: 'rgba(255,255,255,0.48)' }}>{label}</span>
-            </div>
-          ))}
           {/* Fault line key */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
             <div style={{ width: 16, height: 2, background: '#fb923c', opacity: 0.6, flexShrink: 0 }} />

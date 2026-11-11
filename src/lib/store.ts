@@ -111,6 +111,12 @@ interface StoreState {
   setFlyToCoords: (coords: [number, number] | null) => void;
   /** The radar map's visible area [west, south, east, north], kept current by the map; null before it loads. */
   mapViewBox: [number, number, number, number] | null;
+  /** The Events directory's events, shared so the radar draws and lists the same ones. */
+  directoryEvents: import('./globalEvents').GlobalEvent[];
+  setDirectoryEvents: (e: import('./globalEvents').GlobalEvent[]) => void;
+  /** Narrowing applied on top of the timeline's period, for the radar's map and list. */
+  radarFilter: import('./radarEvents').RadarFilter;
+  setRadarFilter: (f: Partial<import('./radarEvents').RadarFilter>) => void;
   setMapViewBox: (b: [number, number, number, number] | null) => void;
 
   /* ── Global Event Selection ─────────────────────────────── */
@@ -171,7 +177,8 @@ export const useStore = create<StoreState>((set, get) => ({
   setPlaybackSpeed: (speed) => set({ playbackSpeed: speed }),
   playbackWindow: 'all',
   playbackAnchor: 0,
-  setPlaybackWindow: (w) => set({ playbackWindow: w, playbackAnchor: Date.now(), currentPassIndex: 0, currentTimestamp: PASS_EPOCHS[0]?.date ?? '', isPlaying: false }),
+  // A new window opens fully revealed; press play (or drag the scrubber back) to replay it.
+  setPlaybackWindow: (w) => set({ playbackWindow: w, playbackAnchor: Date.now(), currentPassIndex: PASS_EPOCHS.length - 1, currentTimestamp: PASS_EPOCHS[PASS_EPOCHS.length - 1]?.date ?? '', isPlaying: false }),
 
   currentTimestamp: defaultScenario.timeRange.start,
   setCurrentTimestamp: (ts) => set({ currentTimestamp: ts }),
@@ -239,6 +246,10 @@ export const useStore = create<StoreState>((set, get) => ({
   flyToCoords: null,
   setFlyToCoords: (coords) => set({ flyToCoords: coords }),
   mapViewBox: null,
+  directoryEvents: [],
+  setDirectoryEvents: (e) => set({ directoryEvents: e }),
+  radarFilter: { types: [], magMin: 0, search: '' },
+  setRadarFilter: (f) => set(s => ({ radarFilter: { ...s.radarFilter, ...f } })),
   setMapViewBox: (b) => set({ mapViewBox: b }),
 
   /* ── Global Event Selection ─────────────────────────────── */

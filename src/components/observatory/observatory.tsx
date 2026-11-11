@@ -9,6 +9,7 @@ import { EVENT_TYPE_CONFIG } from '@/lib/eventDirectoryTypes';
 import type { ViewMode } from '@/lib/types';
 import type { GlobalEvent } from '@/lib/globalEvents';
 import { globalEventToFeature } from '@/lib/eventFeature';
+import { inPeriod, periodOf } from '@/lib/radarEvents';
 import { PASS_EPOCHS } from '@/lib/mockData';
 import { Iris, type IrisHandle } from './iris';
 import { Loader } from './loader';
@@ -48,6 +49,8 @@ function Inner({ initialView }: { initialView: ObView }) {
   const [globeFocus, setGlobeFocus] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
   const { events, sourceHealth, refresh } = useGlobalEvents();
+  const setDirectoryEvents = useStore(s => s.setDirectoryEvents);
+  useEffect(() => { setDirectoryEvents(events); }, [events, setDirectoryEvents]);
   const account = useAccount();
   const watch = useWatchlist(events, account);
 
@@ -83,14 +86,15 @@ function Inner({ initialView }: { initialView: ObView }) {
       if (target === 'radar') {
         // Select the event (opens its callout and info panel), jump the timeline to its epoch and zoom in on it.
         setSelectedGlobalEvent(globalEventToFeature(e));
-        let best = 0, diff = Infinity;
-        PASS_EPOCHS.forEach((p, i) => { const d = Math.abs(new Date(p.date).getTime() - e.time); if (d < diff) { diff = d; best = i; } });
-        setCurrentPassIndex(best);
+        // The radar lists the timeline's period: if this event is outside it, widen the period so it is on the map and in the list.
+        const st = useStore.getState();
+        const pb = { windowId: st.playbackWindow, anchor: st.playbackAnchor, progress: st.currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1) };
+        if (!inPeriod(e, events, pb)) { st.setPlaybackWindow('all'); setCurrentPassIndex(PASS_EPOCHS.length - 1); }
         setFlyToCoords([e.lon, e.lat]);
       } else if (target === 'topo') setTopoEvent(e);
       else setGlobeFocus(e.id);
     });
-  }, [goTo, setFlyToCoords, setSelectedGlobalEvent, setCurrentPassIndex, setTopoEvent]);
+  }, [goTo, events, setFlyToCoords, setSelectedGlobalEvent, setCurrentPassIndex, setTopoEvent]);
 
   const openPlace = useCallback((p: { lat: number; lon: number }, x: number, y: number) => {
     goTo('radar', x, y, () => setFlyToCoords([p.lon, p.lat]));
@@ -113,6 +117,14 @@ function Inner({ initialView }: { initialView: ObView }) {
     }));
   }, [events, playbackWindow, playbackAnchor]);
 
+  // The time the scrubber points at when it sweeps the whole feed, so the readout names a real date.
+  const currentPassIndex = useStore(s => s.currentPassIndex);
+  const cutoffMs = useMemo(() => {
+    if (playbackWindow !== 'all') return null;
+    const end = periodOf(events, { windowId: 'all', anchor: playbackAnchor, progress: currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1) }).end;
+    return end > 0 ? end : null;
+  }, [events, playbackWindow, playbackAnchor, currentPassIndex]);
+
   return (
     <main className="ob-root" data-view={view}>
       {view === 'events' ? (
@@ -129,7 +141,7 @@ function Inner({ initialView }: { initialView: ObView }) {
 
       <TopBar view={view} onView={(v, x, y) => goTo(v, x, y)} health={sourceHealth} watch={watch} />
       <WatchPanel watch={watch} />
-      {view !== 'events' && <Timeline ticks={ticks} />}
+      {view !== 'events' && <Timeline ticks={ticks} cutoffMs={cutoffMs} />}
 
       <Iris ref={iris} />
       <Loader onDone={noop} />

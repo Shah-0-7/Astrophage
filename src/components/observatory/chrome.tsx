@@ -120,7 +120,7 @@ export function TopBar({
 /* ── Timeline: drives the shared pass index in the store ───────── */
 const SPEEDS = [1, 2, 5] as const;
 
-export function Timeline({ ticks }: { ticks: Array<{ at: number; color: string }> }) {
+export function Timeline({ ticks, cutoffMs = null }: { ticks: Array<{ at: number; color: string }>; cutoffMs?: number | null }) {
   const currentPassIndex = useStore(s => s.currentPassIndex);
   const setCurrentPassIndex = useStore(s => s.setCurrentPassIndex);
   const isPlaying = useStore(s => s.isPlaying);
@@ -171,7 +171,7 @@ export function Timeline({ ticks }: { ticks: Array<{ at: number; color: string }
   return (
     <footer className="ob-time">
       <div className="ob-time-controls">
-        <button type="button" className="ob-play" onClick={togglePlayback} aria-label={isPlaying ? 'Pause' : 'Play'}>
+        <button type="button" className="ob-play" onClick={() => { if (!isPlaying && currentPassIndex >= total - 1) setCurrentPassIndex(0); togglePlayback(); }} aria-label={isPlaying ? 'Pause' : 'Play'}>
           {isPlaying
             ? <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 1h3v10H2zM7 1h3v10H7z" fill="currentColor" /></svg>
             : <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z" fill="currentColor" /></svg>}
@@ -187,8 +187,8 @@ export function Timeline({ ticks }: { ticks: Array<{ at: number; color: string }
           ))}
         </div>
         <div className="ob-epoch">
-          {range ? new Date(cutoffInRange(range, progress)).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : pass ? pass.date.slice(0, 10) : '—'}
-          <small>{range ? `REPLAY · LAST ${playbackWindow === '24h' ? '24 HOURS' : '7 DAYS'}` : `${pass?.label ?? '—'} · 12-DAY REPEAT`}</small>
+          {range ? new Date(cutoffInRange(range, progress)).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : cutoffMs ? new Date(cutoffMs).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : pass ? pass.date.slice(0, 10) : '—'}
+          <small>{range ? `REPLAY · LAST ${playbackWindow === '24h' ? '24 HOURS' : '7 DAYS'}` : cutoffMs ? 'REPLAY · ALL EVENTS' : `${pass?.label ?? '—'} · 12-DAY REPEAT`}</small>
         </div>
         <div className="ob-accum">
           <div><small>ΔD ACCUM</small>{pass?.accumDisplacement?.toFixed(1) ?? '—'} <span>MM</span></div>
