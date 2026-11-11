@@ -79,3 +79,4 @@
   .rp-facts{grid-template-columns:1fr 1fr;gap:16px 14px}
 }
 @media (max-width:480px){.rp-brand{display:none}.rp-bar{grid-template-columns:1fr auto}}
+.rp-warn{color:#fbbf24!important;border-left:2px solid #fbbf24;padding-left:10px}

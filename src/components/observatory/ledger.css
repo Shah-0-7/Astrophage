@@ -119,3 +119,4 @@
 .lg-tag{display:block;justify-self:start;width:fit-content;margin:0;padding:2px 5px;font:600 8px/1 var(--font-mono,ui-monospace,monospace);letter-spacing:.12em;color:#34d399;border:1px solid rgba(52,211,153,.5);border-radius:2px;white-space:nowrap}
 .lg-measured dd{color:#34d399}
 .lg-measured small+small{display:block;margin-top:3px;opacity:.7}
+.lg-warn{color:#fbbf24;opacity:1!important}

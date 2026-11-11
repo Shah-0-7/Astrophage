@@ -12,6 +12,7 @@ import { useNisarCoverage } from '@/lib/useNisarCoverage';
 import { fieldStats, FRINGE_CM, type DisplacementField } from '@/lib/displacement/field';
 import { fringeColor, losColor, niceLimit } from '@/lib/displacement/colors';
 import { flatGrid, heightAt, paintDrape, probeAt, type DrapeMode, type Probe } from '@/lib/displacement/drape';
+import { SPARSE_BELOW } from '@/components/observatory/measured-displacement';
 import './measured-view.css';
 
 const SPAN = 4; // longest ground side in scene units
@@ -307,6 +308,7 @@ export function MeasuredTopoView({ event, onExit }: { event: GlobalEvent; onExit
               <h4>HOW TO READ THIS</h4>
               <p>Measured by NISAR, not modelled. The value is motion along the satellite&apos;s line of sight, not vertical motion. A single pass cannot separate up from sideways.</p>
               <p>An interferogram has no absolute zero: the map is relative to the median of its outer edge. Atmosphere, ionosphere and tides are not corrected here, so a few cm of smooth gradient across the scene can be noise.</p>
+              {stats && stats.coverage < SPARSE_BELOW && <p className="mv-warn">Sparse map: only {Math.round(stats.coverage * 100)}% of the area is coherent (water counts as gaps). The extremes may be phase-unwrapping errors (jumps of about 12 cm), so treat them as unconfirmed.</p>}
               {field.notes && <p className="mv-muted">{field.notes}</p>}
             </section>
           )}

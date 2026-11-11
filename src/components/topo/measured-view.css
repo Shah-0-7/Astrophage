@@ -50,3 +50,4 @@
   .mv-overlay{padding:14px}
   .mv-hint{display:none}
 }
+.mv-warn{color:#fbbf24!important;border-left:2px solid #fbbf24;padding-left:8px}
