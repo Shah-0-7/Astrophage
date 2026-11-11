@@ -17,8 +17,8 @@ import dynamic from 'next/dynamic';
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/lib/store';
-import { TARGET_NODES, PASS_EPOCHS, BACKSCATTER_VALUES } from '@/lib/mockData';
-import type { PhaseFilterMode, PolVar, UnifiedFeature } from '@/lib/types';
+import { PASS_EPOCHS } from '@/lib/mockData';
+import type { PhaseFilterMode, UnifiedFeature } from '@/lib/types';
 import { useSSEStream } from '@/lib/useSSEStream';
 import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
 import { estimateDisplacement } from '@/lib/eventPhysics';
@@ -38,11 +38,7 @@ const MapComponent = dynamic(() => import('@/components/Map'), {
   ),
 });
 
-const POL_OPTIONS: PolVar[] = ['HH', 'HV', 'VH', 'VV'];
-
 export default function EventRadar2D() {
-  const activeNodeId = useStore(s => s.activeNodeId);
-  const spatialContext = useStore(s => s.spatialContext);
   const phaseFilterMode = useStore(s => s.phaseFilterMode);
   const setPhaseFilterMode = useStore(s => s.setPhaseFilterMode);
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
@@ -50,12 +46,8 @@ export default function EventRadar2D() {
   const currentPassIndex = useStore(s => s.currentPassIndex);
   const playbackWindow = useStore(s => s.playbackWindow);
   const playbackAnchor = useStore(s => s.playbackAnchor);
-  const lBandStatus = useStore(s => s.lBandStatus);
-  const sBandStatus = useStore(s => s.sBandStatus);
   const setFlyToCoords = useStore(s => s.setFlyToCoords);
 
-  const activeNode = TARGET_NODES.find(n => n.id === activeNodeId) ?? TARGET_NODES[0];
-  const currentPass = PASS_EPOCHS[currentPassIndex];
   
   const stream = useSSEStream();
   const selectedGlobalEvent = useStore(s => s.selectedGlobalEvent);
@@ -116,102 +108,9 @@ export default function EventRadar2D() {
   }
   const [searchValue, setSearchValue] = useState('');
   const [searchActive, setSearchActive] = useState(false);
-  const STATUS_LABEL: Record<string, string> = {
-    NOMINAL: 'NOMINAL', ACQUIRING: 'ACQUIRING', STANDBY: 'STANDBY',
-  };
-  const STATUS_COLOR: Record<string, string> = {
-    NOMINAL: 'var(--nominal)', ACQUIRING: 'var(--acquiring)', STANDBY: 'var(--text-muted)',
-  };
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', overflow: 'hidden' }}>
-      {/* ── Left: contextual sidebar ──────────────────────── */}
-      <div className="hidden md:flex w-[188px] flex-shrink-0 glass-sidebar flex-col border-r border-white/10">
-        {/* Mode indicator */}
-        <div className="p-3 border-b border-white/10">
-          <p className="panel-label">SUBSYSTEM</p>
-          <p className="font-mono text-[11px] font-600 text-white tracking-wider mt-0.5">
-            L-BAND READY
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="panel-label">CARRIER</span>
-            <span className="font-mono text-[10px] text-white/60">1.25 GHz</span>
-          </div>
-        </div>
-
-        {/* Nav modes */}
-        <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">MODES</p>
-          {[
-            { id: 'EVENT_RADAR_2D' as const,   icon: '⊕', label: '2D EVENT RADAR' },
-            { id: 'TOPO_CORE_3D' as const,     icon: '△', label: '3D TOPO CORE' },
-          ].map(m => {
-            const isActive = m.id === 'EVENT_RADAR_2D';
-            return (
-              <div
-                key={m.id}
-                className="flex items-center gap-2 py-1.5 px-2 rounded-[2px] mb-0.5"
-                style={{
-                  background: isActive ? 'rgba(239,68,68,0.08)' : 'transparent',
-                  borderLeft: isActive ? '2px solid var(--crimson)' : '2px solid transparent',
-                }}
-              >
-                <span className="font-mono text-[10px]" style={{ color: isActive ? 'var(--crimson)' : 'var(--text-muted)' }}>
-                  {m.icon}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: isActive ? 'var(--white)' : 'var(--text-muted)' }}>
-                  {m.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Signal profile */}
-        <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">SIGNAL PROFILE</p>
-          {[
-            { label: 'COHERENCE', value: activeNode.coherence.toFixed(2) + ' γ' },
-            { label: 'SWATH RES', value: '240 KM' },
-            { label: 'INCIDENCE', value: '98.4°' },
-          ].map(item => (
-            <div key={item.label} className="flex justify-between items-center py-1">
-              <span className="panel-label">{item.label}</span>
-              <span className="font-mono text-[11px] text-white font-600">{item.value}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Radar channel specs */}
-        <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">RADAR CHANNEL SPECS</p>
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <span className="panel-label">POLARIMETRY</span>
-              <span className="font-mono text-[10px] text-emerald-400 font-600">QUAD-POL (HH+HV)</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="panel-label">WAVELENGTH</span>
-              <span className="font-mono text-[10px] text-white font-600">L-BAND 24.0 cm λ</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="panel-label">SWATH WIDTH</span>
-              <span className="font-mono text-[10px] text-white/70 font-600">242 KM (SWEEP-SAR)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Download link */}
-        <div className="mt-auto p-3 border-t border-white/10">
-          <p className="panel-label">DOWNLNK // LNK</p>
-          <p className="font-mono text-[11px] text-white mt-0.5">4.0 GBPS</p>
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <div className="status-dot nominal" />
-            <span className="panel-label text-white/40">ISRO SHAR GROUND STN</span>
-          </div>
-        </div>
-      </div>
-
       {/* -- Main content column (map + mobile pills) -- */}
       <div className="flex flex-1 flex-col overflow-hidden" style={{ minHeight: 0 }}>
         {/* Map canvas -- fill available space */}
@@ -351,34 +250,12 @@ export default function EventRadar2D() {
         ) : (
           <>
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="status-dot nominal" />
-                <span className="panel-label text-white">SAR TELEMETRY</span>
-              </div>
+              <span className="panel-label text-white">FRINGE LAYER</span>
               <DemoBadge />
             </div>
-
-        {/* Displacement + Coherence */}
-        <div className="p-3 grid grid-cols-2 gap-2 border-b border-white/10">
-          <div className="p-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-zinc)' }}>
-            <p className="panel-label mb-1">DISPLACEMENT</p>
-            <p className="font-mono text-[22px] font-700 text-white leading-none">-12.4</p>
-            <p className="font-mono text-[9px] text-white/40">CM</p>
-          </div>
-          <div className="p-2" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-zinc)' }}>
-            <p className="panel-label mb-1">COHERENCE (γ)</p>
-            <p className="font-mono text-[22px] font-700 text-white leading-none">
-              {activeNode.coherence.toFixed(2)}
+            <p className="px-3 pt-2.5 font-mono text-[9px] leading-snug text-white/45">
+              Controls for the simulated interferogram layer. Pick an event on the map or in the feed below for its details; real NISAR footprints are under LAYERS.
             </p>
-            <p className="font-mono text-[9px] text-white/40">PULSAR</p>
-          </div>
-        </div>
-
-        {/* Repeat orbit */}
-        <div className="px-3 py-2.5 border-b border-white/10 flex justify-between items-center">
-          <span className="panel-label">REPEAT ORBIT</span>
-          <span className="font-mono text-[12px] font-600 text-white">12.0 DAYS</span>
-        </div>
 
         {/* Phase filter */}
         <div className="px-3 py-2.5 border-b border-white/10 flex justify-between items-center">
@@ -412,43 +289,6 @@ export default function EventRadar2D() {
           <div className="flex justify-between mt-1">
             <span className="panel-label">0.0</span>
             <span className="panel-label">1.0</span>
-          </div>
-        </div>
-
-        {/* Dual-band status */}
-        <div className="p-3 border-b border-white/10">
-          <p className="panel-label mb-2">DUAL-BAND STATUS</p>
-          {[
-            { band: 'L-BAND 1.25 GHz', status: lBandStatus },
-            { band: 'S-BAND 3.20 GHz', status: sBandStatus },
-          ].map(({ band, status }) => (
-            <div key={band} className="flex items-center justify-between py-1.5 px-2 mb-1"
-                 style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-zinc)' }}>
-              <span className="font-mono text-[10px] text-white/70">{band}</span>
-              <div className="flex items-center gap-1.5">
-                <div
-                  className="status-dot"
-                  style={{ background: STATUS_COLOR[status], boxShadow: `0 0 4px ${STATUS_COLOR[status]}` }}
-                />
-                <span className="font-mono text-[9px] font-600" style={{ color: STATUS_COLOR[status] }}>
-                  {status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pass info */}
-        <div className="p-3 border-b border-white/10">
-          <div className="flex justify-between items-center">
-            <span className="panel-label">CURRENT PASS</span>
-            <span className="font-mono text-[10px] font-600 text-white">{currentPass?.label}</span>
-          </div>
-          <div className="flex justify-between items-center mt-1">
-            <span className="panel-label">EPOCH</span>
-            <span className="font-mono text-[10px] text-white/60">
-              {currentPass ? new Date(currentPass.date).toISOString().slice(0, 10) : '--'}
-            </span>
           </div>
         </div>
 
@@ -519,6 +359,3 @@ export default function EventRadar2D() {
   );
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  NOMINAL: 'var(--nominal)', ACQUIRING: 'var(--acquiring)', STANDBY: 'var(--text-muted)',
-};
