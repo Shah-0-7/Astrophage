@@ -122,7 +122,7 @@ function Inner({ initialView }: { initialView: ObView }) {
       ) : (
         <div className="ob-view" key={view}>
           {view === 'globe' && <GlobalSchematicGlobe focusId={globeFocus} />}
-          {view === 'radar' && <EventRadar2D />}
+          {view === 'radar' && <EventRadar2D onOpen3D={e => openFromLedger('topo', e, window.innerWidth / 2, window.innerHeight / 2)} />}
           {view === 'topo' && <TopoCore3D />}
         </div>
       )}

@@ -220,6 +220,8 @@ export default function MapComponent() {
 
   // Real NISAR scene footprints (NASA CMR) for the area in view, only while that layer is switched on.
   const [viewBox, setViewBox] = useState<[number, number, number, number] | null>(null);
+  const setMapViewBox = useStore(s => s.setMapViewBox);
+  useEffect(() => { setMapViewBox(viewBox); }, [viewBox, setMapViewBox]);
   const nisar = useNisarScenes(layerConfig.nisarScenes, viewBox);
 
   // MapLibre map ref for programmatic flyTo

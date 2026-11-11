@@ -24,6 +24,8 @@ import { filterByPlayback, windowRange } from '@/lib/playbackFilter';
 import { estimateDisplacement } from '@/lib/eventPhysics';
 import Link from 'next/link';
 import { DemoBadge } from '@/components/ui/demo-badge';
+import { EventNisar, InView } from '@/components/observatory/radar-panel';
+import type { GlobalEvent } from '@/lib/globalEvents';
 
 // Dynamically import the Deck.gl map to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/Map'), {
@@ -38,7 +40,7 @@ const MapComponent = dynamic(() => import('@/components/Map'), {
   ),
 });
 
-export default function EventRadar2D() {
+export default function EventRadar2D({ onOpen3D }: { onOpen3D?: (e: GlobalEvent) => void } = {}) {
   const phaseFilterMode = useStore(s => s.phaseFilterMode);
   const setPhaseFilterMode = useStore(s => s.setPhaseFilterMode);
   const coherenceThreshold = useStore(s => s.coherenceThreshold);
@@ -47,6 +49,7 @@ export default function EventRadar2D() {
   const playbackWindow = useStore(s => s.playbackWindow);
   const playbackAnchor = useStore(s => s.playbackAnchor);
   const setFlyToCoords = useStore(s => s.setFlyToCoords);
+  const mapViewBox = useStore(s => s.mapViewBox);
 
   
   const stream = useSSEStream();
@@ -58,7 +61,7 @@ export default function EventRadar2D() {
     seismic: '▲', cryosphere: '◆', volcanism: '⬡', tsunami: '🌊',
   };
 
-  const globalEvents = useMemo(() => {
+  const { globalEvents, windowEvents } = useMemo(() => {
     const all = [
       ...stream.seismic,
       ...stream.volcanism,
@@ -75,7 +78,7 @@ export default function EventRadar2D() {
     all.sort((a, b) => getTs(b) - getTs(a));
     const progress = currentPassIndex / Math.max(1, PASS_EPOCHS.length - 1);
     const visible = filterByPlayback(all, getTs, progress, windowRange(playbackWindow, playbackAnchor));
-    return visible.slice(0, 10);
+    return { globalEvents: visible.slice(0, 10), windowEvents: visible };
   }, [stream, currentPassIndex, playbackWindow, playbackAnchor]);
 
   const [eventsExpanded, setEventsExpanded] = useState(true);
@@ -162,7 +165,8 @@ export default function EventRadar2D() {
       </div>
 
       {/* ── Right: SAR Telemetry panel / Event Details ─────────────────────── */}
-      <div className="hidden md:flex w-[240px] flex-shrink-0 border-l border-white/10 glass-sidebar flex-col">
+      <div className="hidden md:flex w-[272px] flex-shrink-0 border-l border-white/10 glass-sidebar flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {selectedGlobalEvent ? (
           <>
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
@@ -212,7 +216,7 @@ export default function EventRadar2D() {
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="panel-label">EST. DISPLACEMENT</span>
+                  <span className="panel-label">MODELLED EST.</span>
                   <span className="font-mono text-[10px] font-bold text-white">
                     {(() => {
                       const p = selectedGlobalEvent.properties as any;
@@ -246,9 +250,11 @@ export default function EventRadar2D() {
                 </div>
               )}
             </div>
+            <EventNisar feature={selectedGlobalEvent} onOpen3D={onOpen3D} />
           </>
         ) : (
           <>
+            <InView events={windowEvents} box={mapViewBox} />
             <div className="p-3 border-b border-white/10 flex items-center justify-between">
               <span className="panel-label text-white">FRINGE LAYER</span>
               <DemoBadge />
@@ -324,7 +330,7 @@ export default function EventRadar2D() {
                 transition={{ duration: 0.22, ease: "easeInOut" }}
                 style={{ overflow: "hidden" }}
               >
-                <div className="overflow-y-auto p-3 pt-1 space-y-1.5" style={{ maxHeight: 260 }}>
+                <div className="overflow-y-auto p-3 pt-1 space-y-1.5" style={{ maxHeight: 200 }}>
                   <p className="font-mono text-[8px] text-white/40 pb-1 border-b border-white/5">
                     ● Real-time USGS & Smithsonian feed (past 30 days)
                   </p>
@@ -353,6 +359,7 @@ export default function EventRadar2D() {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </div>

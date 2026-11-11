@@ -109,6 +109,9 @@ interface StoreState {
   /* ── Jump to coordinates ────────────────────────────────── */
   flyToCoords: [number, number] | null;
   setFlyToCoords: (coords: [number, number] | null) => void;
+  /** The radar map's visible area [west, south, east, north], kept current by the map; null before it loads. */
+  mapViewBox: [number, number, number, number] | null;
+  setMapViewBox: (b: [number, number, number, number] | null) => void;
 
   /* ── Global Event Selection ─────────────────────────────── */
   selectedGlobalEvent: import('./types').UnifiedFeature | null;
@@ -235,6 +238,8 @@ export const useStore = create<StoreState>((set, get) => ({
   /* ── Jump to coordinates ────────────────────────────────── */
   flyToCoords: null,
   setFlyToCoords: (coords) => set({ flyToCoords: coords }),
+  mapViewBox: null,
+  setMapViewBox: (b) => set({ mapViewBox: b }),
 
   /* ── Global Event Selection ─────────────────────────────── */
   selectedGlobalEvent: null,
